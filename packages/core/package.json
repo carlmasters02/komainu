@@ -1,0 +1,8 @@
+{
+  "name": "@komainu/core",
+  "version": "0.1.0",
+  "description": "Harness-agnostic security engine for AI coding agents: command risk, secret redaction, taint tracking, audit log, scanning, sandboxing.",
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts" }
+}

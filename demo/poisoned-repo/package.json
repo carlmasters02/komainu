@@ -1,0 +1,8 @@
+{
+  "name": "acme-widgets",
+  "version": "1.4.2",
+  "description": "Tiny, dependency-free UI widgets for dashboards",
+  "type": "module",
+  "main": "src/index.js",
+  "license": "MIT"
+}

@@ -1,0 +1,227 @@
+# Komainu（狛犬）
+
+[English](README.md) | **日本語**
+
+[![2分30秒のウォークスルーを見る](docs/walkthrough.jpg)](docs/komainu-walkthrough.mp4)
+
+![Komainu ホーム画面](docs/home.png)
+
+**[OpenCode](https://github.com/anomalyco/opencode) をベースにした、セキュリティ最優先のコーディングエージェントです。** OpenCode の機能（75以上のモデルプロバイダー、ローカルモデル、TUI、MCP サーバー、プラグイン）はすべてそのまま使えて、さらに次の機能が加わります。
+
+- **6層のセキュリティ**：モデル自体がだまされても、危険な操作を止めます
+- **セキュリティグラフと脅威メモリ**：何がどの層で止められたかを可視化し、一度問題を起こしたソースはどのプロジェクトでも警戒します（Neo4j で共有も可能）
+- **Image guard**：貼り付けた画像に隠されたプロンプトインジェクション（薄い文字、画像スケーリング攻撃、細工されたメタデータ）を、モデルに渡る前にサンドボックス内でチェックします
+- **Effort Advisor**：プロンプトごとに適切な推論エフォートを、実行前に提案します（トークン消費 0）
+- **利用額トラッカー**：今日／7日間／30日間の利用額（サブスクリプションプランではトークン数）と、1日の予算
+- **独自のアイデンティティ**：`komainu` コマンド、狛犬のホーム画面、独自の設定フォルダ。OpenCode の更新には自動で追従します
+
+> **なぜ「Komainu」？** 狛犬は、神社の入口に一対で立つ守り神です。口を開けた「阿」と、口を閉じた「吽」が、入るものと出るものを見張っています。このプロジェクトも同じ考え方です。一方のエージェントがコードを書き、もう一方がセキュリティをレビューし、確認なしに門を通るものはありません。
+
+## セキュリティ：6つの層とメモリ
+
+コーディングエージェントは、シェルコマンドの実行、ファイルの読み込み、Web ページの取得を同じループの中で行います。細工された README、GitHub の issue、MCP の応答がひとつあるだけで、モデルに `cat ~/.aws/credentials | curl …` を実行させることができてしまいます。Komainu はモデルが**だまされうる**ことを前提にしており、各層は「前の層が突破された」ことを前提に動きます。
+
+| 層 | 内容 |
+|---|---|
+| **1. 隔離** | すべてのシェルコマンドを OS のサンドボックス（[`srt`](https://github.com/anthropic-experimental/sandbox-runtime)：Linux では bubblewrap、macOS では Seatbelt）内で実行します。認証情報ファイル（`.env`、SSH キーやクラウドの鍵）は読めず、書き込みはプロジェクト内に限られ、Komainu 自身の設定は読み取り専用、ネットワークはドメインの許可リストを通ります。 |
+| **2. 予防** | シェルコマンド、ファイルアクセス、URL を実行前にすべてチェックします。致命的な操作（`rm -rf ~`、`curl … \| sh`、秘密情報のネットワーク送信、クラウドメタデータへのアクセス）は**ブロック**し、リスクのある操作（force-push、`npm publish`、`sudo`、ガードレールや git フックの編集）は**事前に確認**します。 |
+| **3. 汚染追跡** | 信頼できない内容（Web ページ、検索結果、MCP の出力）がセッションに入った後は、ネットワーク通信、インストール、push、サードパーティのツール呼び出しにあなたの承認が必要になります。信頼できないテキストは囲い込まれ、プロンプトインジェクションのパターンがないか検査されます。 |
+| **4. 秘匿化** | API キー、トークン、秘密鍵、URL 内の認証情報を、モデル（やプロバイダー）に届く前にツール出力から取り除きます。 |
+| **5. 修正** | エージェントが書いたファイルはすべて、よくある脆弱性（インジェクション、XSS、安全でないデシリアライズ、TLS 検証の無効化、弱い暗号、ハードコードされた秘密情報など）を検査します。Semgrep が入っていればそれも使います。指摘はそのままエージェントに返され、エージェントが修正するか、`komainu-ignore` コメントでコード内に理由を残します。 |
+| **6. 記録** | すべての判断を、ハッシュチェーンで連結され秘密情報が除去された監査ログ（`.komainu/audit.jsonl`）に書き込みます。履歴の改ざんや削除は検出できます。 |
+
+Komainu が何かをブロックしたときや、プロンプトインジェクションの疑いを見つけたときは、すぐにポップアップで知らせます。折りたたまれたツール出力を開いて確認する必要はありません。
+
+差分レビュー用に、読み取り専用の `security-reviewer` サブエージェントも同梱しています。ファイルと `git diff` を読むことしかできません。
+
+### セキュリティグラフ
+
+`/komainu → Security graph` で、監査ログを読みやすいパイプラインとして表示します：**信頼できない入力 → セッション → エージェントが試みたこと → 止めた層 → 結果**。ローカルの HTML ファイル 1 つ（`.komainu/graph.html`、通信なし・アカウント不要）としてブラウザで開きます。ノードをクリックすると、その経路をたどれます。ヘッダーには、監査ログのハッシュチェーンが正しく検証できたかどうかが表示されます。
+
+![セキュリティグラフ](docs/graph.png)
+
+### 脅威メモリ
+
+Komainu は問題を起こしたものを覚えています。プロンプトインジェクションのパターンが見つかった Web ソースや MCP ツール、そしてブロックされた、またはあなたが拒否した通信先ドメインです。次にそれらを使おうとすると、**どのプロジェクトでも**事前に確認し、その理由を表示します。
+
+![脅威メモリ](docs/recall.png)
+
+誰でも公開できる共有ホスト（GitHub、npm、PyPI、Hugging Face、Gist など）では、ホスト全体ではなく `github.com/attacker` のように公開者単位で記憶するため、悪意のあるリポジトリがひとつあっても GitHub 全体が疑わしくなることはありません。メモリは Komainu を厳しくする方向にしか働きません（許可 → 確認。その逆はありません）。そのため、メモリが汚染されても何かが許可されることはありません。`/komainu → Threat memory` で内容の確認やオフができます。保存先は `~/.local/state/komainu/threat-memory.json` で、エージェントからは変更できません。
+
+### Image guard（画像ガード）
+
+添付した画像（**Ctrl+V** でスクリーンショットを貼り付け、またはファイルをターミナルにドラッグ）は、モデルに渡る前にチェックされます。画像には、気づきにくいプロンプトインジェクションを仕込めるからです。薄い文字や小さな文字、画像を縮小したときだけ現れる文字（モデルは縮小版を見ます。[Trail of Bits の画像スケーリング攻撃](https://blog.trailofbits.com/2025/08/21/weaponizing-image-scaling-against-production-ai-systems/)の手口）、メタデータに隠した指示、SVG 内のスクリプト、画像の中に隠した別のファイルなどです。
+
+![Image guard](docs/image-guard.png)
+
+- 各画像の文字を、人に見えるままの状態、コントラストを強めた状態、モデルが縮小するサイズの状態で読み取り、プロンプトインジェクションの検査にかけます。縮小版にだけ現れる文字は、スケーリング攻撃として検出します。
+- 信頼できない画像を読むにはデコードが必要なため、その処理は**ネットワークなしのサンドボックス内**で実行します。ファイル構造のチェック（メタデータ、隠しファイル、ファイル形式の不一致、展開爆弾）はピクセルをデコードしません。
+- 問題が見つかると、モデルが読み取る内容を表示したうえで、**Don't send**（プロンプトを止める）か **Send anyway**（セッションを信頼できない状態として扱い、リスクのある操作に承認が必要になる）を選べます。問題のない画像は何も表示せずに通過します。検出された画像はフィンガープリントで記憶されます。
+- `/komainu → Image guard`：**Ask**（既定）/ **Block** / **Off**。文字の読み取りには `tesseract`（縮小チェックには ImageMagick も）が必要です。ない場合も構造チェックは実行され、文字はチェックされていないことが通知されます。
+
+テスト用の画像は `demo/images/` にあります。
+
+### オプション：Neo4j
+
+`/komainu → Neo4j` で Neo4j データベース（Aura またはローカル）に接続すると、同じグラフをそこへ送り、脅威メモリを複数のマシンやチームメンバーと共有できます。各監査イベントは `(:Event)` ノードになり、`(:Project)`、`(:Session)`、`(:Source)`、それを止めた `(:Layer)`、通信しようとした `(:Target)` ホストとつながります。ソースやドメインを使う前に、Komainu はそれが他の場所で問題を起こしていないかもデータベースに問い合わせます。
+
+- Aura が発行する認証情報の `.txt` ファイルを読み込めます。パスワードが画面に表示されることはありません。認証情報は `~/.local/state/komainu/credentials.json` に保存され、ポリシーエンジンとサンドボックスの両方がエージェントからの読み取りを拒否します。
+- 送信されるのは、秘密情報を除去済みの監査項目だけです。ファイルの中身は送信されません。書き込みはバックグラウンドでまとめて行い、問い合わせは 1.5 秒でタイムアウトするので、データベースが遅くても接続できなくても、エージェントの動作が遅くなることはありません。
+- Neo4j なしでも、Komainu はまったく同じように動きます。
+
+Neo4j Browser で試せるクエリ：
+
+```cypher
+// 問題が検出されたソースと、それが現れたプロジェクト
+MATCH (s:Source)<-[:FROM]-(e:Event {kind:'taint', severity:'bad'})-[:IN_PROJECT]->(p:Project)
+RETURN s.key, count(e) AS incidents, collect(DISTINCT p.path) AS projects ORDER BY incidents DESC
+```
+
+### ベンチマーク
+
+`bun run bench` は 15 種類のプロンプトインジェクション攻撃を実行します。どのケースも、攻撃者の内容をセッションに入れたうえで、**モデルがそれに完全に従う**と仮定します。
+
+| モード | ブロック | 承認が必要 | 気づかれずに成功 |
+|---|---|---|---|
+| `balanced`（既定） | 6 | 9 | **0** |
+| `strict` | 8 | 7 | **0** |
+
+これはこのプロジェクト用に作成したケースに対するポリシーレベルのテストです。実際のモデルを使ったエンドツーエンドの評価は[ロードマップ](docs/ROADMAP.md)にあります。新しい攻撃ケースの提供を歓迎します。
+
+### 攻撃を自分で試す
+
+[`demo/DEMO.md`](demo/DEMO.md) では、動画のデモを手順どおりに再現できます。ドキュメントで AI エージェントに `.env` の送信を指示する偽のライブラリを、あるプロジェクトで読み込み、別のプロジェクトで見破るまでの流れです。`demo/publish-poisoned-repo.sh <org>` を実行すると、この無害なテスト用リポジトリ（送信先は予約済み TLD の `.invalid` なので実際には届きません）を GitHub に公開できます。画像スケーリング攻撃を含む Image guard のテスト画像は `demo/images/` にあります。
+
+## Effort Advisor
+
+![Effort Advisor](docs/advisor.png)
+
+プロンプトを送信すると、Komainu は**モデルに渡る前に**、ローカルのルールで難しさを判定します（**トークン消費 0**）。
+
+- **エフォートが合っている** → 何も起きず、そのまま実行されます。
+- **エフォートが合っていない** → 切り替えを提案します：*「このプロンプトは "high" エフォートより簡単そうです」* → **low に切り替え** / **high のまま** / **切り替えて、今後は自動で行う**。
+
+**現在のモデルが実際に提供しているエフォートレベル**（none、minimal、low、medium、high、xhigh、max、または thinking のオン/オフ）を読み取り、適切なものを選びます。下げるときは十分な中で最も安いもの、上げるときは十分な中で最小のものです。モデルの `default` はおおよそ medium として扱います。「続けて」のような続きの指示には反応せず、45 秒以内に応答がなければ（ヘッドレス実行など）エフォートはそのままです。
+
+| `/advisor` モード | 動作 |
+|---|---|
+| **Suggest**（既定） | プロンプト実行前に、より良いエフォートを提案します。合っていれば何も表示しません |
+| **Auto** | 簡単なプロンプトでは確認せずにエフォートを下げます。上げる場合（コストが増える場合）は確認します |
+| **Off** | 判定しません |
+
+## 利用額トラッカー
+
+サイドバーとホーム画面に、OpenCode 自身の利用データから**今日／7日間／30日間**の利用額を表示します。サブスクリプションプランで金額が $0 と表示される場合は、代わりに**トークン数**を表示します。`/spend` で **1日の予算**を設定すると、80% と 100% で警告します。
+
+## コマンド
+
+すべてアプリ内から切り替えられます。再起動も設定ファイルの編集も不要です。
+
+| コマンド | 内容 |
+|---|---|
+| `/advisor` | Effort Advisor のモード：Suggest / Auto / Off |
+| `/spend` | 利用額トラッカーの表示・非表示、1日の予算の設定・解除 |
+| `/komainu` | Komainu のハブ：セキュリティグラフ、脅威メモリ、Image guard、Neo4j、上記の設定、スポンサー、各ファイルの場所 |
+
+Komainu のコマンド名は OpenCode の組み込みコマンドと重ならないようにしています（`/effort` は OpenCode の `/variants` の別名で、エフォート自体を設定します。`/usage` と `/stats` も OpenCode のコマンドです）。選んだ設定は `~/.local/state/komainu/settings.json` に保存されます。このファイルはガードレールで保護されており、エージェントは変更できません。
+
+## インストール
+
+**Linux** と **macOS** で動作します。Windows では **WSL2** を使ってください。[Bun](https://bun.sh) と git が必要です。
+
+```bash
+# 1. サンドボックス（強く推奨。既定の設定では、これがないとシェルコマンドを拒否します）
+npm i -g @anthropic-ai/sandbox-runtime
+sudo apt install bubblewrap socat ripgrep        # Debian/Ubuntu
+sudo dnf install bubblewrap socat ripgrep        # Fedora
+#   macOS：追加のインストールは不要です（組み込みの Seatbelt を使います）
+
+# 任意：Image guard が画像内の文字を読めるようにします
+sudo apt install tesseract-ocr imagemagick       # Debian/Ubuntu
+sudo dnf install tesseract ImageMagick           # Fedora
+brew install tesseract imagemagick               # macOS
+
+# 2. komainu コマンドをビルドしてインストール
+git clone https://github.com/carlmasters02/komainu ~/tools/komainu
+cd ~/tools/komainu
+fork/build.sh            # OpenCode のソース + Komainu のパッチ → fork/dist/komainu（初回は 1〜2 分）
+fork/install.sh          # ~/.local/bin/komainu をインストールし、セキュリティ層をグローバルに有効化
+
+# 3. 初回起動
+komainu auth login       # Komainu のログイン情報は opencode とは別に管理されます
+cd your-project && komainu
+```
+
+**すでに OpenCode を使っている場合：** MCP サーバー、プラグイン、モデル、プロバイダー、カスタムエージェント、コマンド、AGENTS.md を一度に移行できます（元の OpenCode には影響しません）。
+```bash
+bun fork/import-opencode-settings.ts && komainu service restart
+```
+
+**アップデート：** `cd ~/tools/komainu && git pull && bun install && komainu service restart`。再ビルド（`fork/build.sh && fork/install.sh`）は `fork/UPSTREAM` が変わったときだけ必要です。
+
+## 設定
+
+既定値は `~/.config/komainu/opencode.json` の Komainu プラグインの `options` にあります。
+
+```jsonc
+{
+  "mode": "balanced",        // セキュリティ："strict" | "balanced" | "permissive"
+  "sandbox": "required",     // "required"（srt がなければシェルを拒否）| "auto" | "off"
+  "allowedDomains": ["registry.npmjs.org", "pypi.org", "github.com"],
+  "trustedTools": ["my_internal_mcp_tool"],   // 出力を信頼する MCP ツール
+  "fenceUntrusted": true,
+  "scan": { "builtin": true, "semgrep": "p/security-audit" },
+  "effort": "suggest",       // Effort Advisor の既定値（/advisor でいつでも切り替え可能）
+  "budget": { "daily": 5 }   // 任意：1日の予算（USD）。/spend でも設定できます
+}
+```
+
+## OpenCode への追従の仕組み
+
+`komainu` は、OpenCode に 3 つの小さなパッチ（コマンド名と専用の設定フォルダ、狛犬のロゴ、終了・再開時の案内）を当てたものです。VSCodium が VS Code に対して行っているのと同じ方法です。それ以外（セキュリティ層、Effort Advisor、利用額トラッカー、コマンド）はすべてプラグインなので、パッチは不要です。毎日実行される GitHub ワークフローが、OpenCode の新しいリリースにパッチを当て直し、問題なくビルドできればプルリクエストを、修正が必要なら issue を作成します。詳細は [`fork/README.md`](fork/README.md) を参照してください。
+
+### 通常の OpenCode でプラグインとして使う
+ブランディング以外はすべて、通常の OpenCode v2 でも動作します。
+```bash
+cp presets/opencode.json presets/AGENTS.md your-project/
+# opencode.json の "package" を ~/tools/komainu/packages/opencode-plugin の絶対パスに設定します
+```
+
+## トラブルシューティング
+
+- **`komainu` が固まる、またはサービスのポートが使用中と表示される：** 通常の OpenCode のバックグラウンドサーバーが同じポートを使っている可能性があります。Komainu 専用のポートを設定してください：`komainu service set port 49375`。
+- **プロジェクトに `.komainu/` フォルダができない：** プラグインが読み込まれていません。`komainu debug config` と `komainu --print-logs --log-level info` を確認してください。
+- **シェルコマンドが拒否される：** サンドボックスがインストールされていません。`srt -c "echo ok"` が動くか確認してください。
+- **Neo4j に接続できない：** `/komainu → Neo4j → Test connection` でドライバーのエラーを確認できます。Aura の URI は `neo4j+s://` で始まります。新しい Aura インスタンスは起動まで 1 分ほどかかることがあります。接続できない間も、Komainu は通常どおり動作し、ローカルで脅威を記憶し続けます。
+- **Image guard が「画像内の文字はチェックされていません」と表示する：** `tesseract`（と ImageMagick）をインストールし、サンドボックスが動くこと（`srt -c "echo ok"`）を確認してください。
+- **サンドボックス内でエージェントに `komainu.json` や `.bashrc` などの空ファイルが見える：** まだ存在しないパスを保護するために、サンドボックスが置く読み取り専用のプレースホルダーです。実際のディスク上にはありません。
+
+## 開発
+
+```bash
+bun install
+bun test           # ユニットテスト、プラグインテスト、（srt と bubblewrap があれば）実際のサンドボックスのテスト
+bun run typecheck  # 実際の @opencode/plugin の型に対してチェック
+bun run bench      # プロンプトインジェクションのベンチマーク
+```
+
+```
+packages/core              セキュリティエンジン、画像ガード、セキュリティグラフ、脅威メモリ、Effort Advisor、設定（OpenCode への依存なし）
+packages/opencode-plugin   OpenCode アダプター：サーバーフック（index.ts）、TUI のパネルとコマンド（tui.tsx）、任意の Neo4j 連携（neo4j.ts）
+fork/                      パッチ、ビルド・インストール・移行スクリプト、ロゴのソース
+presets/                   既定の設定とエージェントへの指示
+bench/injection            プロンプトインジェクションのベンチマーク
+docs/                      脅威モデル、ロードマップ、スクリーンショット
+```
+
+## スポンサー
+
+初回起動時に、Komainu はスポンサーである ai& についてのメッセージを 1 回だけ表示します。ai& は Komainu が初めてデモされたイベントのスポンサーで、日本国内の GPU で AI 推論を提供し、オープンモデルを OpenAI 互換の API で利用できます。**Connect** を選ぶと通常の接続画面が開き、**Not now** を選ぶと二度と表示されません。データがどこかに送られることはなく、使用中のモデルも変わりません。`/komainu → Sponsors` でスポンサーメッセージをオフにできます。Neo4j 対応（上記）も同様に任意です。
+
+## クレジット
+
+[OpenCode](https://github.com/anomalyco/opencode)（MIT）と Anthropic の [sandbox-runtime](https://github.com/anthropic-experimental/sandbox-runtime)（Apache-2.0）をベースにしています。いずれのプロジェクトとも提携関係はありません。
+
+## ライセンス
+
+MIT

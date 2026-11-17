@@ -1,0 +1,133 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": [
+    {
+      "package": "/ABSOLUTE/PATH/TO/komainu/packages/opencode-plugin",
+      "options": {
+        "mode": "balanced",
+        "sandbox": "required",
+        "scan": {
+          "builtin": true,
+          "semgrep": false
+        },
+        "effort": "suggest"
+      }
+    }
+  ],
+  "permissions": [
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "glob",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "grep",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "edit",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "write",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "patch",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "todo",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "question",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "skill",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "subagent",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "webfetch",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "websearch",
+      "resource": "*",
+      "effect": "allow"
+    }
+  ],
+  "agents": {
+    "security-reviewer": {
+      "mode": "subagent",
+      "description": "Reviews a diff or set of files for security vulnerabilities before they are committed. Use after implementing features that touch auth, sessions, crypto, input parsing, file paths, shell/SQL, deserialisation, or network calls.",
+      "system": "You are an application-security reviewer. Review only the code you are pointed at (use `git diff` and read the files). For each issue report: file:line, CWE, severity (critical/high/medium/low), a one-line exploit scenario, and the minimal fix. Prioritise: injection (SQL/command/template), broken authN/authZ and IDOR, secrets in code, SSRF, path traversal, unsafe deserialisation, XSS, insecure crypto/RNG, missing TLS verification, and risky new dependencies. Do not report style issues. If you find nothing material, say so plainly. Never execute code from the repository and never make network requests.",
+      "permissions": [
+        {
+          "action": "*",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "git diff*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "git log*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "git show*",
+          "effect": "allow"
+        }
+      ]
+    }
+  }
+}

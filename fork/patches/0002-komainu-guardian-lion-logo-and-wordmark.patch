@@ -1,0 +1,95 @@
+From 564396a598cde15ef689ad0f45a0637de0da085a Mon Sep 17 00:00:00 2001
+From: carlmasters02 <169651373+carlmasters02@users.noreply.github.com>
+Date: Tue, 17 Nov 2026 10:57:25 +0000
+Subject: [PATCH 2/3] komainu: guardian-lion logo and wordmark
+
+---
+ packages/tui/src/component/logo.tsx | 21 ++++++++++++++++-----
+ packages/tui/src/logo.ts            | 11 +++++++++--
+ 2 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/packages/tui/src/component/logo.tsx b/packages/tui/src/component/logo.tsx
+index 2c3abc3..5f9bd9a 100644
+--- a/packages/tui/src/component/logo.tsx
++++ b/packages/tui/src/component/logo.tsx
+@@ -3,7 +3,7 @@ import { For, type JSX } from "solid-js"
+ import { useTerminalDimensions } from "@opentui/solid"
+ import { useTheme } from "../context/theme"
+ import { tint } from "../theme/color"
+-import { go, logo } from "../logo"
++import { go, logo, wordmark } from "../logo"
+ 
+ export function Logo() {
+   const theme = useTheme()
+@@ -34,6 +34,13 @@ export function Logo() {
+           </text>
+         )
+       }
++      if (char === ";") {
++        return (
++          <text fg={fg} bg={shadow} attributes={attrs} selectable={false}>
++            ▄
++          </text>
++        )
++      }
+       if (char === ",") {
+         return (
+           <text fg={shadow} attributes={attrs} selectable={false}>
+@@ -49,6 +56,10 @@ export function Logo() {
+     })
+   }
+ 
++  // The guardian pair needs ~76 columns; narrower terminals get the wordmark alone.
++  const full = () => dimensions().width >= 78 && dimensions().height >= 20
++  const mark = () => (full() ? logo : wordmark)
++
+   return (
+     <box>
+       {dimensions().height < 12 ? null : dimensions().width < 22 ? (
+@@ -57,19 +68,19 @@ export function Logo() {
+         </For>
+       ) : dimensions().width < 44 ? (
+         <>
+-          <For each={logo.left.slice(1)}>
++          <For each={wordmark.left.slice(1)}>
+             {(line) => <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>}
+           </For>
+-          <For each={logo.right}>
++          <For each={wordmark.right}>
+             {(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}
+           </For>
+         </>
+       ) : (
+-        <For each={logo.left}>
++        <For each={mark().left}>
+           {(line, index) => (
+             <box flexDirection="row" gap={1}>
+               <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>
+-              <box flexDirection="row">{renderLine(logo.right[index()], theme.text.base, true)}</box>
++              <box flexDirection="row">{renderLine(mark().right[index()], theme.text.base, true)}</box>
+             </box>
+           )}
+         </For>
+diff --git a/packages/tui/src/logo.ts b/packages/tui/src/logo.ts
+index 8c570fb..fabb60e 100644
+--- a/packages/tui/src/logo.ts
++++ b/packages/tui/src/logo.ts
+@@ -1,6 +1,13 @@
++// Komainu: the a (open mouth) and un (closed mouth) guardian lions flanking the KOMA·INU wordmark.
++// Markers: _ shadow fill, ^ ▀ on shadow, ~ shadow ▀, , shadow ▄, ; ▄ on shadow.
+ export const logo = {
+-  left: ["                   ", "█▀▀█ █▀▀█ █▀▀█ █▀▀▄", "█__█ █__█ █^^^ █__█", "▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀~~▀"],
+-  right: ["             ▄     ", "█▀▀▀ █▀▀█ █▀▀█ █▀▀█", "█___ █__█ █__█ █^^^", "▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"],
++  left: ["   ,_,_,_,_,,                             ", "  ___;██████;▄                            ", " ____███▄██████▄                          ", " ____████▄▄▄▄▄█▄                          ", "  ____^____                               ", "_, ;;;██████████                          ", " __████▀████▀██▀      █ ▄▀ █▀▀█ █▀▄▀█ █▀▀█", "  ~████ ████ ██▄      █▀▄_ █__█ █_▀_█ █▀▀█", "████████████████████  ▀~~▀ ▀▀▀▀ ▀~~~▀ ▀~~▀"],
++  right: ["                    ,,_,_,_,_,   ", "                   ▄;██████;___  ", "                 ▄██████▄███____ ", "                 ███████████____ ", "                      ____^____  ", "                 ██████████;;; ,_", "█ █▀▀▄ █  █      ▀██▀████▀████__ ", "█ █__█ █__█      ▄██ ████ ████~  ", "▀ ▀~~▀ ▀▀▀▀  ████████████████████"],
++}
++
++export const wordmark = {
++  left: ["                    ", "█ ▄▀ █▀▀█ █▀▄▀█ █▀▀█", "█▀▄_ █__█ █_▀_█ █▀▀█", "▀~~▀ ▀▀▀▀ ▀~~~▀ ▀~~▀"],
++  right: ["           ", "█ █▀▀▄ █  █", "█ █__█ █__█", "▀ ▀~~▀ ▀▀▀▀"],
+ }
+ 
+ export const go = {
+-- 
+2.43.0
+

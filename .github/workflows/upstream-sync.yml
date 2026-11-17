@@ -1,0 +1,75 @@
+name: upstream-sync
+# Daily: if OpenCode has a new release, re-apply Komainu's patches to it and build.
+#   patches apply + build passes → opens a PR bumping fork/UPSTREAM (merge it to adopt the release)
+#   patches conflict             → opens an issue so the patches can be updated
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Find latest upstream release
+        id: latest
+        run: |
+          latest=$(git ls-remote --tags --refs https://github.com/anomalyco/opencode 'v*' \
+            | awk -F/ '{print $3}' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          current=$(cat fork/UPSTREAM)
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "OpenCode latest: $latest, Komainu pinned: $current"
+
+      - name: Skip if already synced or already proposed
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.latest.outputs.latest }}" = "${{ steps.latest.outputs.current }}" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git ls-remote --exit-code origin "refs/heads/sync-${{ steps.latest.outputs.latest }}" >/dev/null; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      - name: Apply patches and build
+        id: build
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        run: fork/build.sh "${{ steps.latest.outputs.latest }}"
+
+      - name: Open PR (build passed)
+        if: steps.gate.outputs.run == 'true' && steps.build.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.latest.outputs.latest }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "sync-$TAG"
+          echo "$TAG" > fork/UPSTREAM
+          git add fork/UPSTREAM
+          git commit -m "chore(fork): sync with OpenCode $TAG"
+          git push -u origin "sync-$TAG"
+          gh pr create --title "Sync with OpenCode $TAG" \
+            --body "OpenCode released $TAG. Komainu's patches applied cleanly and the \`komainu\` binary built. Merge to adopt it, then run \`fork/build.sh && fork/install.sh\` locally."
+
+      - name: Open issue (patches need updating)
+        if: steps.gate.outputs.run == 'true' && steps.build.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.latest.outputs.latest }}
+        run: |
+          gh issue list --search "in:title Patches need updating for OpenCode $TAG" --json number --jq length | grep -q '^0$' || exit 0
+          gh issue create --title "Patches need updating for OpenCode $TAG" \
+            --body "OpenCode $TAG is out, but Komainu's patches did not apply or the build failed. See the workflow log, then refresh fork/patches (fork/README.md explains how)."

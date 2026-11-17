@@ -1,0 +1,6 @@
+node_modules/
+.komainu/
+*.log
+fork/.work/
+fork/dist/
+__pycache__/

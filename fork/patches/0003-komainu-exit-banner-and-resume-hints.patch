@@ -1,0 +1,52 @@
+From 458343ba801f9fed21783fe3dd48172bc6850feb Mon Sep 17 00:00:00 2001
+From: carlmasters02 <169651373+carlmasters02@users.noreply.github.com>
+Date: Tue, 17 Nov 2026 10:57:25 +0000
+Subject: [PATCH 3/3] komainu: exit banner and resume hints
+
+---
+ packages/tui/src/mini/splash.ts       | 2 +-
+ packages/tui/src/util/presentation.ts | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/packages/tui/src/mini/splash.ts b/packages/tui/src/mini/splash.ts
+index 123b224..232980b 100644
+--- a/packages/tui/src/mini/splash.ts
++++ b/packages/tui/src/mini/splash.ts
+@@ -181,7 +181,7 @@ function buildExit(input: SplashWriterInput, ctx: ScrollbackRenderContext): Scro
+   const body_left = (mark[0]?.length ?? 0) + 2
+   const session = "Session  "
+   const label = "Continue "
+-  const command = `opencode mini -s ${meta.session_id}`
++  const command = `komainu mini -s ${meta.session_id}`
+   const wide = body_left + stringWidth(label + command) <= width
+   const commandHeight = wide ? 1 : Math.ceil(stringWidth(command) / width)
+ 
+diff --git a/packages/tui/src/util/presentation.ts b/packages/tui/src/util/presentation.ts
+index d6416a0..36b674c 100644
+--- a/packages/tui/src/util/presentation.ts
++++ b/packages/tui/src/util/presentation.ts
+@@ -11,6 +11,8 @@ function wordmark(pad = "") {
+         if (char === "_") return `${bg} ${reset}`
+         if (char === "^") return `${fg}${bg}▀${reset}`
+         if (char === "~") return `${shadow}▀${reset}`
++        if (char === ",") return `${shadow}▄${reset}`
++        if (char === ";") return `${fg}${bg}▄${reset}`
+         if (char === " ") return " "
+         return `${fg}${char}${reset}`
+       })
+@@ -33,10 +35,10 @@ export function epilogue(input: { readonly session?: SessionEpilogue; readonly u
+     ...wordmark("  "),
+     "",
+     ...(input.updatedVersion
+-      ? [`  ${dim}Run ${reset}${bold}opencode${reset}${dim} to use ${reset}${bold}${input.updatedVersion}${reset}`, ""]
++      ? [`  ${dim}Run ${reset}${bold}komainu${reset}${dim} to use ${reset}${bold}${input.updatedVersion}${reset}`, ""]
+       : []),
+     ...(input.session
+-      ? [row("Session", input.session.title), row("Continue", `opencode -s ${input.session.sessionID}`), ""]
++      ? [row("Session", input.session.title), row("Continue", `komainu -s ${input.session.sessionID}`), ""]
+       : []),
+   ].join("\n")
+ }
+-- 
+2.43.0
+
