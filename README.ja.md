@@ -2,7 +2,7 @@
 
 [English](README.md) | **日本語**
 
-[![2分30秒のウォークスルーを見る](docs/walkthrough.jpg)](docs/komainu-walkthrough.mp4)
+https://github.com/user-attachments/assets/a8b50c12-e8b2-45ce-8ef2-c3bdec14ab45
 
 ![Komainu ホーム画面](docs/home.png)
 
