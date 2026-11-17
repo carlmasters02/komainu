@@ -2,7 +2,7 @@
 
 [English](README.md) | **日本語**
 
-https://github.com/user-attachments/assets/a8b50c12-e8b2-45ce-8ef2-c3bdec14ab45
+https://github.com/user-attachments/assets/1d10ee87-b692-4012-8c60-824901aaf1bf
 
 ![Komainu ホーム画面](docs/home.png)
 
