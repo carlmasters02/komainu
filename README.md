@@ -186,6 +186,41 @@ cp presets/opencode.json presets/AGENTS.md your-project/
 # in opencode.json, set "package" to the absolute path of ~/tools/komainu/packages/opencode-plugin
 ```
 
+## FAQ
+
+**Isn't the model just being dumb? Good models won't fall for this.**
+Prompt injection fools even the best models some of the time, and attackers only need it to work once. Komainu assumes the model can be fooled, so the protection doesn't depend on the model.
+
+**Was the model in the demo video real?**
+No, it was scripted to fall for the attack on purpose. The protections that stopped it are real Komainu code.
+
+**How is this different from Claude Code's or Codex's sandbox?**
+Those protect one tool and one vendor. Komainu works with any model in OpenCode and adds things they don't have: taint tracking, threat memory across projects, image injection checks and a security graph.
+
+**Won't it ask for permission all the time?**
+No. Normal work passes silently. It only steps in after untrusted content or for risky actions, and when it blocks something it tells you why.
+
+**What are the limits?**
+Injection detection uses pattern matching, so it can miss clever wording. That's why the sandbox and taint tracking don't rely on it. OpenCode's built-in file tools aren't sandboxed yet; that's on the [roadmap](docs/ROADMAP.md). Image text reading can miss stylised text.
+
+**How do you stay up to date with OpenCode?**
+Komainu is OpenCode plus 3 small patches. A daily job re-applies them to each new release, and everything else is a plugin.
+
+**Why Neo4j?**
+Attacks are naturally graph-shaped: a source leads to a session, then an action, then a block. Neo4j stores that graph and shares threat memory across a team, so one person's catch protects everyone.
+
+**Does any of my data leave my machine?**
+Not by default. Neo4j is opt-in, sends only redacted audit records and never sends file contents.
+
+**What's the benchmark?**
+15 prompt-injection attacks where we assume the model fully obeys. None succeed silently: 6 are blocked and 9 need your approval.
+
+**What's next?**
+Sandboxing MCP servers, detecting MCP tools that change behaviour after you trust them, checking packages before install, and live benchmarks with real models. See the [roadmap](docs/ROADMAP.md).
+
+**Why the name?**
+Komainu are the guardian lion-dogs at Japanese shrine gates. Nothing passes without a check.
+
 ## Troubleshooting
 
 - **`komainu` hangs or says the service port is in use:** stock OpenCode's background server may be using the same port. Give Komainu its own: `komainu service set port 49375`.
