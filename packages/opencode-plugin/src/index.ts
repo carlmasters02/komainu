@@ -131,6 +131,13 @@ export function createKomainu(options: KomainuOptions = {}) {
       const srt = sandboxMode === "off" ? undefined : srtBinary()
       const srtSettings = srt ? writeSrtSettings({ workspace, allowedDomains: opts.allowedDomains ?? DEFAULT_ALLOWED_DOMAINS }, stateDir) : undefined
       const forceAsk = new Set<string>()
+      /** URLs the webfetch tool hook already decided, so the permission check that follows doesn't ask twice. */
+      const checkedFetch = new Set<string>()
+      const fetchKeys = (url: string) => {
+        const host = hostOf(url)
+        const scope = sourceScope(url)
+        return [scope && `url:${scope}`, host && !isMultiTenantHost(host) && `domain:${host}`].filter((k): k is string => !!k)
+      }
 
       audit.append({ kind: "start", mode: policy.mode, sandbox: srt ? "srt" : sandboxMode === "off" ? "off" : "unavailable", workspace })
 
@@ -193,10 +200,9 @@ export function createKomainu(options: KomainuOptions = {}) {
           }
           case "webfetch": {
             const url = str(input.url)
-            const host = url ? hostOf(url) : undefined
-            const scope = url ? sourceScope(url) : undefined
-            const keys = [scope && `url:${scope}`, host && !isMultiTenantHost(host) && `domain:${host}`].filter((k): k is string => !!k)
-            if (url) return enforce(e, await withRecall(decideFetch(url, policy, tctx), keys, e.tool, e.sessionID, url), [url])
+            if (!url) return
+            await enforce(e, await withRecall(decideFetch(url, policy, tctx), fetchKeys(url), e.tool, e.sessionID, url), [url])
+            checkedFetch.add(`${e.sessionID}|${url}`)
             return
           }
           default: {
@@ -210,7 +216,27 @@ export function createKomainu(options: KomainuOptions = {}) {
       })
 
       // Third-party tools after taint: an injected prompt's best exfil channel is another integration.
-      await ctx.permission.hook("evaluate", (e) => {
+      await ctx.permission.hook("evaluate", async (e) => {
+        // fetch() inside Code Mode's `execute` reaches the network through this webfetch check, not through
+        // the webfetch tool, so apply the same URL policy, threat memory and taint here.
+        if (e.action === "webfetch") {
+          for (const url of e.resources) {
+            if (checkedFetch.delete(`${e.sessionID}|${url}`)) continue
+            const decision = await withRecall(decideFetch(url, policy, { tainted: taint.isTainted(e.sessionID) }), fetchKeys(url), "execute", e.sessionID, url)
+            audit.append({ kind: "decision", sessionID: e.sessionID, tool: "execute", effect: decision.effect, resources: [url], findings: decision.findings.map((f) => f.rule), tainted: taint.isTainted(e.sessionID) })
+            if (decision.effect === "deny") {
+              e.effect = "deny"
+              e.message = `[komainu] Blocked: ${decision.reason ?? "fetch blocked by policy"}`
+              notify(e.sessionID, `⛩ Blocked fetch in code: ${decision.findings[0]?.message ?? url}`)
+              return
+            }
+            if (decision.effect === "ask" && e.effect === "allow") {
+              e.effect = "ask"
+              e.message = decision.reason
+            }
+            taint.mark(e.sessionID, { tool: "execute", detail: url, suspicious: [] })
+          }
+        }
         if (forceAsk.has(`${e.sessionID}|${e.action}`) && e.effect === "allow") e.effect = "ask"
         if (e.effect === "allow" && taint.isTainted(e.sessionID) && taint.isUntrustedTool(e.action) && !["webfetch", "websearch"].includes(e.action)) {
           e.effect = "ask"

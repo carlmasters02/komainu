@@ -174,6 +174,13 @@ export function analyzeShell(command: string): Finding[] {
     findings.push(f("pipe-to-shell", "critical", "Downloads remote content and executes it (curl | sh)"))
   if (/base64\s+(?:-d|--decode)[^|]*\|\s*(?:ba|z)?sh/.test(command) || /\beval\s+["'$`(]*\$\(.*base64/.test(command))
     findings.push(f("obfuscated-exec", "critical", "Decodes and executes obfuscated content"))
+  // Two-step obfuscation: decode into a file or a substitution, then run it.
+  if (/base64\s+(?:-d|--decode|-D)\b/.test(command)) {
+    if (/<\(\s*[^)]*base64\s+(?:-d|--decode|-D)\b/.test(command) || (/\$\([^)]*base64\s+(?:-d|--decode|-D)\b/.test(command) && /\b(?:ba|z|da)?sh\b|\beval\b|\bsource\b/.test(command)))
+      findings.push(f("obfuscated-exec", "critical", "Decodes and executes obfuscated content"))
+    else if (/(?:^|[;&|(]\s*)(?:(?:ba|z|da)?sh|source|\.)\s+\S|(?:^|[;&|(]\s*)\.\/\S|\bchmod\s+\S*x/.test(command))
+      findings.push(f("obfuscated-exec-file", "high", "Decodes hidden content and runs a file in the same command"))
+  }
   if (/>\s*\/dev\/(?:sd|nvme|disk|hd)/.test(command)) findings.push(f("raw-disk-write", "critical", "Writes directly to a block device"))
   if (/\/dev\/tcp\//.test(command)) findings.push(f("dev-tcp", "high", "Opens a raw TCP socket via /dev/tcp (common reverse-shell idiom)"))
   if (/>>?\s*~?\/?[^\s]*\/?\.(?:bashrc|zshrc|profile|bash_profile|zprofile)\b/.test(command))
@@ -297,6 +304,32 @@ export function analyzeShell(command: string): Finding[] {
     findings.push(f("secret-exfiltration", "critical", "Reads credential files and sends data over the network in one command"))
 
   return dedupe(findings)
+}
+
+/**
+ * Files a shell command writes to: redirections (> >> 2> &>), tee, cp/mv/install/ln destinations, dd of=,
+ * and in-place edits (sed -i, perl -i). Lets the file-write rules (protected paths, secrets, CI config)
+ * apply to shell writes too, so `echo … > .git/hooks/pre-commit` is treated like the write tool.
+ */
+export function shellWriteTargets(command: string): string[] {
+  const out: string[] = []
+  for (const seg of splitCommand(command)) {
+    const toks = tokenize(seg.raw)
+    for (let i = 0; i < toks.length; i++) {
+      const m = /^(?:\d|&)?>>?\|?(.*)$/.exec(toks[i]!)
+      if (!m) continue
+      const target = m[1] || toks[i + 1]
+      if (target && !target.startsWith("&")) out.push(target)
+    }
+    const { name, args } = program(seg.argv)
+    const files = args.filter((a) => !a.startsWith("-") && !/^(?:\d|&)?>/.test(a))
+    if (name === "tee") out.push(...files)
+    else if (["cp", "mv", "install", "ln", "rsync"].includes(name) && files.length >= 2) out.push(files.at(-1)!)
+    else if (name === "dd") out.push(...args.filter((a) => a.startsWith("of=")).map((a) => a.slice(3)))
+    else if ((name === "sed" || name === "perl") && args.some((a) => /^-[a-zA-Z]*i/.test(a) || a.startsWith("--in-place")))
+      out.push(...files.slice(name === "sed" ? 1 : 0))
+  }
+  return [...new Set(out)].filter((p) => p && !/^\/dev\/(?:null|stdout|stderr|tty|fd\/)/.test(p))
 }
 
 function dedupe(findings: Finding[]): Finding[] {

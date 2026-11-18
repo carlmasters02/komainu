@@ -1,10 +1,10 @@
 /**
  * Turns findings into allow / ask / deny, taking session taint and the user's chosen mode into account.
  */
-import { homedir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import { isAbsolute, normalize, relative, resolve } from "node:path"
 import { containsSecret, isSensitivePath } from "./secrets.js"
-import { analyzeShell } from "./shell.js"
+import { analyzeShell, shellWriteTargets } from "./shell.js"
 import { describe, strongest, type Decision, type Effect, type Finding, type Severity } from "./types.js"
 
 export type Mode = "strict" | "balanced" | "permissive"
@@ -42,7 +42,16 @@ export function decide(findings: readonly Finding[], cfg: PolicyConfig, ctx: Pol
 }
 
 export function decideShell(command: string, cfg: PolicyConfig, ctx: PolicyContext): Decision {
-  return decide(analyzeShell(command), cfg, ctx)
+  const findings = analyzeShell(command)
+  // Shell writes get the same checks as the write tool (protected guardrail files, secrets, CI config).
+  for (const target of shellWriteTargets(command)) {
+    const path = target.replace(/^\$\{?HOME\}?(?=\/|$)/, homedir())
+    const abs = resolvePath(path, cfg.workspace)
+    if (!inside(abs, cfg.workspace) && [tmpdir(), "/tmp", "/var/tmp"].some((t) => inside(abs, t))) continue
+    for (const finding of decideFileAccess("write", path, cfg, ctx).findings)
+      if (!findings.some((x) => x.rule === finding.rule)) findings.push({ ...finding, message: `${finding.message} (via shell)` })
+  }
+  return decide(findings, cfg, ctx)
 }
 
 export function resolvePath(p: string, workspace: string): string {
