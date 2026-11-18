@@ -1,22 +1,34 @@
 name: upstream-sync
-# Daily: if OpenCode has a new release, re-apply Komainu's patches to it and build.
-#   patches apply + build passes → opens a PR bumping fork/UPSTREAM (merge it to adopt the release)
-#   patches conflict             → opens an issue so the patches can be updated
+# Keeps Komainu in step with OpenCode, with no manual steps:
+#   1. every 6 hours, look for a new OpenCode release
+#   2. re-apply Komainu's patches to it, build, and run the tests
+#   3. passed     → bump fork/UPSTREAM on main and publish a Komainu release with prebuilt binaries;
+#                   everyone's komainu then shows "update available" and /update installs it
+#      conflicts  → open an issue so the patches can be refreshed (fork/README.md explains how)
+# Pushing a change under fork/ also publishes a release if the current version has none yet.
 on:
   schedule:
-    - cron: "17 6 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["fork/**", ".github/workflows/upstream-sync.yml"]
 
 permissions:
   contents: write
-  pull-requests: write
   issues: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
 
       - name: Find latest upstream release
@@ -29,47 +41,83 @@ jobs:
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "OpenCode latest: $latest, Komainu pinned: $current"
 
-      - name: Skip if already synced or already proposed
-        id: gate
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ steps.latest.outputs.latest }}" = "${{ steps.latest.outputs.current }}" ]; then
-            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          if git ls-remote --exit-code origin "refs/heads/sync-${{ steps.latest.outputs.latest }}" >/dev/null; then
-            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          echo "run=true" >> "$GITHUB_OUTPUT"
-
-      - name: Apply patches and build
+      - name: Apply patches to the new release and build
         id: build
-        if: steps.gate.outputs.run == 'true'
+        if: steps.latest.outputs.latest != steps.latest.outputs.current
         continue-on-error: true
         run: fork/build.sh "${{ steps.latest.outputs.latest }}"
 
-      - name: Open PR (build passed)
-        if: steps.gate.outputs.run == 'true' && steps.build.outcome == 'success'
+      - name: Run Komainu's tests
+        id: tests
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat ripgrep
+          npm i -g @anthropic-ai/sandbox-runtime
+          bun install --frozen-lockfile
+          bun run typecheck && bun test && bun run bench/injection/run.ts --ci
+
+      - name: Adopt the new release on main
+        if: steps.build.outcome == 'success' && steps.tests.outcome == 'success'
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.latest.outputs.latest }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "sync-$TAG"
+          git config user.name "carlmasters02"
+          git config user.email "169651373+carlmasters02@users.noreply.github.com"
           echo "$TAG" > fork/UPSTREAM
-          git add fork/UPSTREAM
+          rm -f fork/REVISION
+          git add -A fork/UPSTREAM fork/REVISION
           git commit -m "chore(fork): sync with OpenCode $TAG"
-          git push -u origin "sync-$TAG"
-          gh pr create --title "Sync with OpenCode $TAG" \
-            --body "OpenCode released $TAG. Komainu's patches applied cleanly and the \`komainu\` binary built. Merge to adopt it, then run \`fork/build.sh && fork/install.sh\` locally."
+          git push origin HEAD:main
 
       - name: Open issue (patches need updating)
-        if: steps.gate.outputs.run == 'true' && steps.build.outcome != 'success'
+        if: steps.latest.outputs.latest != steps.latest.outputs.current && (steps.build.outcome != 'success' || steps.tests.outcome != 'success')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.latest.outputs.latest }}
         run: |
-          gh issue list --search "in:title Patches need updating for OpenCode $TAG" --json number --jq length | grep -q '^0$' || exit 0
-          gh issue create --title "Patches need updating for OpenCode $TAG" \
-            --body "OpenCode $TAG is out, but Komainu's patches did not apply or the build failed. See the workflow log, then refresh fork/patches (fork/README.md explains how)."
+          title="Komainu could not sync with OpenCode $TAG"
+          [ "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq length)" = "0" ] || exit 0
+          gh issue create --title "$title" \
+            --body "OpenCode $TAG is out, but Komainu's patches did not apply, the build failed, or the tests failed. See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}, then refresh fork/patches (fork/README.md explains how)."
+
+      - name: Work out the release version
+        id: version
+        run: |
+          upstream=$(cat fork/UPSTREAM)
+          version="${upstream#v}-komainu"
+          [ -s fork/REVISION ] && version="$version.$(cat fork/REVISION)"
+          echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"; echo "v$version is already released"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release binaries
+        if: steps.version.outputs.publish == 'true'
+        env:
+          KOMAINU_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p release
+          for target in linux-x64 linux-arm64 darwin-arm64 darwin-x64; do
+            OPENCODE_TARGET=$target fork/build.sh "${{ steps.version.outputs.upstream }}"
+            cp fork/dist/komainu "release/komainu-$target"
+          done
+          ./release/komainu-linux-x64 --version | grep -q "$KOMAINU_VERSION"
+          (cd release && sha256sum komainu-* > SHA256SUMS && cat SHA256SUMS)
+
+      - name: Publish the release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          UPSTREAM: ${{ steps.version.outputs.upstream }}
+        run: |
+          gh release create "v$VERSION" release/* --target "$(git rev-parse HEAD)" --latest \
+            --title "Komainu $VERSION" \
+            --notes "Komainu built on OpenCode $UPSTREAM: OpenCode's changes and security fixes, plus Komainu's protections.
+          OpenCode's release notes: https://github.com/anomalyco/opencode/releases/tag/$UPSTREAM
+
+          Inside komainu, run /update (or accept the update notice). From a terminal: komainu-update."

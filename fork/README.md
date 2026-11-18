@@ -29,9 +29,13 @@ komainu              # in any project
 ```
 
 ## Staying in sync with OpenCode
-`.github/workflows/upstream-sync.yml` runs daily:
-- **New OpenCode release, patches apply, build passes** → a PR bumping `fork/UPSTREAM`. Merge it, then `git pull && fork/build.sh && fork/install.sh`.
-- **Patches conflict** → an issue. Fix them as below.
+`.github/workflows/upstream-sync.yml` runs every 6 hours:
+- **New OpenCode release, patches apply, build and tests pass** → it bumps `fork/UPSTREAM` on main and publishes a release `vX.Y.Z-komainu` with binaries for linux-x64, linux-arm64, darwin-arm64 and darwin-x64, plus `SHA256SUMS`.
+- **Patches conflict or tests fail** → an issue. Fix the patches as below and push; the push publishes the release.
+
+Users get it like any OpenCode update: patch `0004` makes OpenCode's updater check Komainu's latest GitHub release (the startup notice and `/update`), and install it by running `komainu-update`, which `fork/install.sh` puts next to the binary. `komainu-update` (`fork/update.sh`) pulls the repo, downloads and checksum-verifies the binary for the machine (building from source if there is none), and reinstalls.
+
+Komainu-only fixes to the binary (a patch change with no new OpenCode release): put a number in `fork/REVISION` (`1`, `2`, …) and push; that publishes `vX.Y.Z-komainu.N`. The next OpenCode sync removes the file. Plugin-only changes need no release: `komainu-update` always pulls the latest code.
 
 ## Updating the patches
 ```bash

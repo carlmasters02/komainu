@@ -156,7 +156,7 @@ cd your-project && komainu
 bun fork/import-opencode-settings.ts && komainu service restart
 ```
 
-**Updating:** `cd ~/tools/komainu && git pull && bun install && komainu service restart`. Rebuild (`fork/build.sh && fork/install.sh`) only when `fork/UPSTREAM` changes.
+**Updating:** Komainu tells you when an update is out, just like OpenCode does. Accept the notice or run `/update` inside komainu, or run `komainu-update` from a terminal. It pulls the latest code, downloads the matching prebuilt binary (checksum-verified, or builds from source if there isn't one for your machine), and installs it. Every OpenCode release gets a matching Komainu release automatically, usually within a few hours, so you get the same fixes and security updates.
 
 ## Configuration
 
@@ -177,7 +177,7 @@ Defaults live in `~/.config/komainu/opencode.json` under the Komainu plugin's `o
 
 ## How the harness stays in sync with OpenCode
 
-`komainu` is OpenCode plus three small patches (command name and separate settings folders, the guardian-lion logo, and the exit/resume hints), the same approach VSCodium uses for VS Code. Everything else (security layers, Effort Advisor, spend tracker, commands) is a plugin, so it needs no patches at all. A daily GitHub workflow re-applies the patches to each new OpenCode release and opens a pull request when they build cleanly, or an issue when they need updating. Details: [`fork/README.md`](fork/README.md).
+`komainu` is OpenCode plus a few small patches (command name and separate settings folders, the guardian-lion logo, and the exit/resume hints), the same approach VSCodium uses for VS Code. Everything else (security layers, Effort Advisor, spend tracker, commands) is a plugin, so it needs no patches at all. A GitHub workflow checks for new OpenCode releases every 6 hours. When the patches apply and the build and tests pass, it adopts the release and publishes a matching Komainu release with prebuilt binaries for Linux and macOS, which komainu then offers you as an update. If the patches ever need updating, it opens an issue instead. (A fourth small patch points OpenCode's built-in updater at those releases.) Details: [`fork/README.md`](fork/README.md).
 
 ### Use it as a plugin with stock OpenCode instead
 Everything except the branding also works inside regular OpenCode v2:
@@ -204,7 +204,7 @@ No. Normal work passes silently. It only steps in after untrusted content or for
 Injection detection uses pattern matching, so it can miss clever wording. That's why the sandbox and taint tracking don't rely on it. OpenCode's built-in file tools aren't sandboxed yet; that's on the [roadmap](docs/ROADMAP.md). Image text reading can miss stylised text.
 
 **How do you stay up to date with OpenCode?**
-Komainu is OpenCode plus 3 small patches. A daily job re-applies them to each new release, and everything else is a plugin.
+Komainu is OpenCode plus a few small patches, and everything else is a plugin. Every OpenCode release is re-patched, tested and published as a Komainu release automatically, and komainu shows you the update notice the same way OpenCode does.
 
 **Why Neo4j?**
 Attacks are naturally graph-shaped: a source leads to a session, then an action, then a block. Neo4j stores that graph and shares threat memory across a team, so one person's catch protects everyone.

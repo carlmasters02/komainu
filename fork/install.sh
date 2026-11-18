@@ -16,17 +16,35 @@ echo "→ installing plugin dependencies"
 echo "→ installing komainu → $BIN/komainu"
 mkdir -p "$BIN" "$CFG"
 install -m 755 "$REPO/fork/dist/komainu" "$BIN/komainu"
+# komainu-update sits next to the binary: komainu's /update and its update notice run it.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '# Installed by Komainu (fork/install.sh). Updates Komainu code and binary; /update inside komainu runs this.' \
+  "export KOMAINU_BIN_DIR=\"$BIN\"" \
+  "exec \"$REPO/fork/update.sh\" \"\$@\"" > "$BIN/komainu-update"
+chmod 755 "$BIN/komainu-update"
 
 if [ ! -f "$CFG/opencode.json" ] || [ "${1:-}" = "--force-config" ]; then
   echo "→ writing global config $CFG/opencode.json (Komainu plugin on for every project)"
   REPO="$REPO" CFG="$CFG" bun -e '
     const preset = await Bun.file(`${process.env.REPO}/presets/opencode.json`).json()
     preset.plugins[0].package = `${process.env.REPO}/packages/opencode-plugin`
-    preset.update = "disable"   // updates come from the Komainu sync, never from upstream OpenCode
     await Bun.write(`${process.env.CFG}/opencode.json`, JSON.stringify(preset, null, 2) + "\n")
   '
 else
   echo "→ keeping existing $CFG/opencode.json (use --force-config to replace it)"
+  # Older installs turned update checks off; they now come from Komainu's own releases, so turn them on once.
+  if [ ! -f "$CFG/.update-checks-on" ]; then
+    CFG="$CFG" bun -e '
+      const file = `${process.env.CFG}/opencode.json`
+      try {
+        const config = await Bun.file(file).json()
+        if (config.update === "disable") {
+          config.update = "notify"
+          await Bun.write(file, JSON.stringify(config, null, 2) + "\n")
+        }
+      } catch {}
+    ' && touch "$CFG/.update-checks-on"
+  fi
 fi
 [ -f "$CFG/AGENTS.md" ] || cp "$REPO/presets/AGENTS.md" "$CFG/AGENTS.md"
 

@@ -1,0 +1,142 @@
+From cca986da1883186da42b298fa509e560f2a4cb37 Mon Sep 17 00:00:00 2001
+From: carlmasters02 <169651373+carlmasters02@users.noreply.github.com>
+Date: Wed, 18 Nov 2026 12:11:15 +0000
+Subject: [PATCH] komainu: updates come from Komainu releases
+
+The updater gains a "komainu" install method, picked whenever the komainu-update script sits next to the binary. /update and the startup update notice then check Komainu's GitHub releases (one is published for every OpenCode release) and install through komainu-update, instead of looking for an OpenCode install and offering plain OpenCode.
+---
+ packages/cli/src/services/updater.ts | 66 ++++++++++++++++++++++++++--
+ 1 file changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/packages/cli/src/services/updater.ts b/packages/cli/src/services/updater.ts
+index 0c38bab..2566e9c 100644
+--- a/packages/cli/src/services/updater.ts
++++ b/packages/cli/src/services/updater.ts
+@@ -11,7 +11,13 @@ import { RetainedImage } from "./retained-image"
+ import { action, parseReleaseVersion, type Policy } from "./updater-action"
+ import { errorMessage } from "../util/error"
+ 
+-export const methods = ["curl", "npm", "pnpm", "bun", "yarn", "vp", "brew", "winget"] as const
++export const methods = ["curl", "npm", "pnpm", "bun", "yarn", "vp", "brew", "winget", "komainu"] as const
++
++// Komainu: this build is OpenCode plus Komainu's patches, so its updates come from Komainu's own releases
++// (published automatically for every OpenCode release) and are installed by the `komainu-update` script that
++// fork/install.sh puts next to the binary. Upstream OpenCode's installers would replace Komainu with plain OpenCode.
++const komainuReleases =
++  process.env.KOMAINU_RELEASES_URL ?? "https://api.github.com/repos/carlmasters02/komainu/releases/latest"
+ 
+ export type Method = (typeof methods)[number]
+ export type RunResult = { readonly type: "available" | "installed"; readonly version: string }
+@@ -57,6 +63,7 @@ const installNames: Record<Method, string> = {
+   vp: "Vite+",
+   brew: "Homebrew",
+   winget: "WinGet",
++  komainu: "The Komainu updater",
+ }
+ 
+ const wingetPackage = "Anomaly.OpenCode"
+@@ -149,6 +156,8 @@ const make = Effect.gen(function* () {
+   const installedVersion = yield* Ref.make(OPENCODE_VERSION)
+   const channel = OPENCODE_CHANNEL.replace(/[^a-zA-Z0-9._-]/g, "-")
+   const executable = yield* fs.realPath(process.execPath).pipe(Effect.orElseSucceed(() => process.execPath))
++  const komainuUpdater = path.join(path.dirname(executable), "komainu-update")
++  const komainuInstalled = yield* fs.exists(komainuUpdater).pipe(Effect.orElseSucceed(() => false))
+   const installedPackage = yield* Effect.gen(function* () {
+     const directory = path.dirname(path.dirname(executable))
+     const manifest: { name: string; bin?: Record<string, string> } = yield* fs
+@@ -252,6 +261,7 @@ const make = Effect.gen(function* () {
+   })
+ 
+   const method = Effect.fnUntraced(function* () {
++    if (komainuInstalled) return "komainu" as const
+     if (executable === curlBinary) return "curl"
+     if (installedFormula) return "brew"
+     if (installedWinget) return "winget"
+@@ -286,7 +296,7 @@ const make = Effect.gen(function* () {
+ 
+   const removalCommand = (method: Method) => {
+     if (method === "winget") return ["winget", "uninstall", ...wingetArgs]
+-    if (method === "curl" || method === "brew" || !installedPackage) return undefined
++    if (method === "curl" || method === "brew" || method === "komainu" || !installedPackage) return undefined
+     const commands = {
+       npm: [npm, "uninstall", "--global", ...npmPrefixArgs, installedPackage],
+       pnpm: ["pnpm", "remove", "--global", installedPackage],
+@@ -398,10 +408,57 @@ const make = Effect.gen(function* () {
+     return version
+   })
+ 
++  const komainuFailure = (detail: string, cause?: unknown) =>
++    new UpgradeError(
++      {
++        title: "Could not check for Komainu updates",
++        detail,
++        retry: "Check your network, then run /update again.",
++      },
++      cause === undefined ? undefined : { cause },
++    )
++  const komainuLatest = Effect.fnUntraced(function* () {
++    const response = yield* Effect.tryPromise({
++      try: (signal) =>
++        fetch(komainuReleases, {
++          headers: { accept: "application/vnd.github+json", "user-agent": "komainu-updater" },
++          signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
++        }),
++      catch: (cause) => komainuFailure(errorDetail(cause), cause),
++    })
++    if (!response.ok) return yield* Effect.fail(komainuFailure(`GitHub answered ${response.status}`))
++    const data = yield* Effect.tryPromise({
++      try: () => response.json() as Promise<{ tag_name?: unknown }>,
++      catch: (cause) => komainuFailure(errorDetail(cause), cause),
++    })
++    const version = typeof data.tag_name === "string" ? data.tag_name.replace(/^v/, "") : ""
++    if (!parseReleaseVersion(version)) return yield* Effect.fail(komainuFailure(`Unexpected release tag: ${data.tag_name}`))
++    return version
++  })
++  const komainuUpgrade = (version: string) =>
++    exec([komainuUpdater, version], "30 minutes").pipe(
++      Effect.flatMap((result) =>
++        result.code === 0
++          ? Effect.void
++          : Effect.fail(
++              new UpgradeError({
++                title: "The Komainu updater failed",
++                detail: resultDetail(result),
++                command: `komainu-update ${version}`,
++                retry: "Run komainu-update in a terminal to see the full output.",
++              }),
++            ),
++      ),
++    )
++
+   const latest = (selected?: Method) =>
+     (selected ? Effect.succeed(selected) : method()).pipe(
+       Effect.flatMap((method) =>
+-        method === "winget" ? wingetVersion() : release(method).pipe(Effect.map((data) => data.version)),
++        method === "komainu"
++          ? komainuLatest()
++          : method === "winget"
++            ? wingetVersion()
++            : release(method).pipe(Effect.map((data) => data.version)),
+       ),
+     )
+ 
+@@ -483,6 +540,7 @@ const make = Effect.gen(function* () {
+   const upgrade = Effect.fnUntraced(function* (method: Method, input: string) {
+     if (!parseReleaseVersion(input)) return yield* Effect.fail(new Error(`Invalid version: ${input}`))
+     const version = input.trim().replace(/^v/, "")
++    if (method === "komainu") return yield* komainuUpgrade(version)
+     const packageName =
+       method === "winget"
+         ? wingetPackage
+@@ -493,7 +551,7 @@ const make = Effect.gen(function* () {
+     if (installedPackage && packageName !== installedPackage && (method === "pnpm" || method === "yarn")) {
+       return yield* Effect.fail(new Error(`Reinstall ${target} with ${method} to migrate from ${installedPackage}.`))
+     }
+-    const commands: Record<Exclude<Method, "bun" | "curl" | "brew" | "winget">, string[]> = {
++    const commands: Record<Exclude<Method, "bun" | "curl" | "brew" | "winget" | "komainu">, string[]> = {
+       // Keep the old package: uninstalling it can unlink the replacement command.
+       npm: [
+         npm,
+-- 
+2.43.0
+

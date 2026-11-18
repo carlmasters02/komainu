@@ -157,7 +157,7 @@ cd your-project && komainu
 bun fork/import-opencode-settings.ts && komainu service restart
 ```
 
-**アップデート：** `cd ~/tools/komainu && git pull && bun install && komainu service restart`。再ビルド（`fork/build.sh && fork/install.sh`）は `fork/UPSTREAM` が変わったときだけ必要です。
+**アップデート：** OpenCode と同じように、更新があると Komainu が知らせてくれます。通知から更新するか、komainu の中で `/update` を実行するか、ターミナルで `komainu-update` を実行してください。最新のコードを取得し、対応するビルド済みバイナリ（チェックサム検証済み。お使いのマシン向けがなければソースからビルド）をインストールします。OpenCode の新しいリリースごとに、対応する Komainu のリリースが自動で（通常は数時間以内に）公開されるので、同じ修正やセキュリティ更新を受け取れます。
 
 ## 設定
 
@@ -178,7 +178,7 @@ bun fork/import-opencode-settings.ts && komainu service restart
 
 ## OpenCode への追従の仕組み
 
-`komainu` は、OpenCode に 3 つの小さなパッチ（コマンド名と専用の設定フォルダ、狛犬のロゴ、終了・再開時の案内）を当てたものです。VSCodium が VS Code に対して行っているのと同じ方法です。それ以外（セキュリティ層、Effort Advisor、利用額トラッカー、コマンド）はすべてプラグインなので、パッチは不要です。毎日実行される GitHub ワークフローが、OpenCode の新しいリリースにパッチを当て直し、問題なくビルドできればプルリクエストを、修正が必要なら issue を作成します。詳細は [`fork/README.md`](fork/README.md) を参照してください。
+`komainu` は、OpenCode にいくつかの小さなパッチ（コマンド名と専用の設定フォルダ、狛犬のロゴ、終了・再開時の案内）を当てたものです。VSCodium が VS Code に対して行っているのと同じ方法です。それ以外（セキュリティ層、Effort Advisor、利用額トラッカー、コマンド）はすべてプラグインなので、パッチは不要です。GitHub ワークフローが 6 時間ごとに OpenCode の新しいリリースを確認します。パッチが当たり、ビルドとテストが通れば、そのリリースを取り込み、Linux と macOS 向けのビルド済みバイナリ付きで Komainu のリリースを公開します。komainu はそれを更新として案内します。パッチの修正が必要な場合は issue を作成します（4 つ目の小さなパッチで、OpenCode 組み込みの更新機能がこのリリースを参照するようにしています）。詳細は [`fork/README.md`](fork/README.md) を参照してください。
 
 ### 通常の OpenCode でプラグインとして使う
 ブランディング以外はすべて、通常の OpenCode v2 でも動作します。
@@ -205,7 +205,7 @@ cp presets/opencode.json presets/AGENTS.md your-project/
 インジェクションの検出はパターンマッチングなので、巧妙な言い回しは見逃すことがあります。そのため、サンドボックスと汚染追跡は検出に頼らない作りになっています。OpenCode 組み込みのファイルツールはまだサンドボックス化されていません（[ロードマップ](docs/ROADMAP.md)に記載）。画像の文字読み取りは、装飾的な文字を見逃すことがあります。
 
 **OpenCode の更新にはどう追従していますか？**
-Komainu は OpenCode に 3 つの小さなパッチを当てたものです。毎日実行されるジョブが新しいリリースにパッチを当て直し、それ以外はすべてプラグインです。
+Komainu は OpenCode にいくつかの小さなパッチを当てたもので、それ以外はすべてプラグインです。OpenCode の新しいリリースは自動でパッチ適用・テストされ、Komainu のリリースとして公開されます。更新の通知も OpenCode と同じように表示されます。
 
 **なぜ Neo4j なのですか？**
 攻撃はもともとグラフの形をしています。ソースからセッション、操作、ブロックへとつながります。Neo4j はそのグラフを保存し、脅威メモリをチームで共有するので、ひとりが検出した攻撃がチーム全員を守ります。
