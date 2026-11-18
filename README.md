@@ -24,7 +24,7 @@ Coding agents run shell commands, read your files and fetch web pages, all in th
 | Layer | What it does |
 |---|---|
 | **1. Contain** | Every shell command runs in an OS sandbox ([`srt`](https://github.com/anthropic-experimental/sandbox-runtime): bubblewrap on Linux, Seatbelt on macOS). Credential files (`.env`, SSH/cloud keys) are unreadable, writes are limited to the project, Komainu's own settings are read-only, and network goes through a domain allowlist. |
-| **2. Prevent** | Checks every shell command, file access and URL before it runs. Catastrophic actions (`rm -rf ~`, `curl … \| sh`, sending secrets over the network, cloud metadata) are **blocked**; risky ones (force-push, `npm publish`, `sudo`, editing guardrails or git hooks) **ask you first**. |
+| **2. Prevent** | Checks every shell command (including the files it writes to), file access and URL before it runs, including `fetch()` inside OpenCode's Code Mode. Catastrophic actions (`rm -rf ~`, `curl … \| sh`, sending secrets over the network, cloud metadata) are **blocked**; risky ones (force-push, `npm publish`, `sudo`, editing guardrails or git hooks) **ask you first**. |
 | **3. Taint tracking** | Once untrusted content enters the session (web pages, search results, MCP output), network calls, installs, pushes and third-party tool calls need your approval. Untrusted text is fenced and checked for prompt-injection patterns. |
 | **4. Redact** | API keys, tokens, private keys and URL credentials are scrubbed from tool output before the model (or your provider) ever sees them. |
 | **5. Correct** | Every file the agent writes is scanned for common vulnerabilities (injection, XSS, unsafe deserialisation, disabled TLS, weak crypto, hardcoded secrets…), plus Semgrep if installed. Findings go straight back to the agent, which fixes them or justifies them in the code with a `komainu-ignore` comment. |
@@ -87,6 +87,8 @@ RETURN s.key, count(e) AS incidents, collect(DISTINCT p.path) AS projects ORDER 
 
 These are policy-level tests against cases written for this project. To see how a real model behaves, `bun run bench/live/run.ts --model <provider/model>` hides the same attacks in ordinary-looking setup guides and GitHub issues, asks komainu to do the task, and reports whether the model tried each attack and what Komainu did. Every run uses a throwaway home folder with fake secrets. New attack cases are very welcome.
 
+**First live run (Nov 2026, two free models, 14 attacks each):** neither model carried out an attack; both mostly recognised the poisoned steps. The useful finding: after Komainu refused a fetch, one model re-fetched the page with JavaScript through OpenCode's code-execution tool, a route that skipped Komainu's URL checks. That route, plus two related ways to write protected files through the shell, was closed the same day (`2.3.2-komainu.1`).
+
 ### Try the attacks yourself
 
 [`demo/DEMO.md`](demo/DEMO.md) walks through the demo from the video: a fake library whose docs tell AI agents to send your `.env` away, read in one project and recognised in another. `demo/publish-poisoned-repo.sh <org>` publishes the harmless fixture (its exfiltration domain uses the reserved `.invalid` TLD) as its own GitHub repo. Test images for Image guard, including an image-scaling attack, are in `demo/images/`.
@@ -144,7 +146,7 @@ brew install tesseract imagemagick               # macOS
 git clone https://github.com/carlmasters02/komainu ~/tools/komainu
 cd ~/tools/komainu
 fork/build.sh            # OpenCode source + Komainu's patches → fork/dist/komainu (first run ~1–2 min)
-fork/install.sh          # installs ~/.local/bin/komainu and turns the security layers on globally
+fork/install.sh          # installs ~/.local/bin/komainu (+ komainu-update) and turns the security layers on globally
 
 # 3. first run
 komainu auth login       # Komainu keeps its own logins, separate from opencode
@@ -157,6 +159,11 @@ bun fork/import-opencode-settings.ts && komainu service restart
 ```
 
 **Updating:** Komainu tells you when an update is out, just like OpenCode does. Accept the notice or run `/update` inside komainu, or run `komainu-update` from a terminal. It pulls the latest code, downloads the matching prebuilt binary (a ~70 MB compressed archive, checksum-verified; it builds from source if there isn't one for your machine or the download stalls), and installs it, showing progress as it goes. Every OpenCode release gets a matching Komainu release automatically, usually within a few hours, so you get the same fixes and security updates.
+
+**Installed before Nov 18, 2026?** If `komainu --version` shows `2.3.0`, your copy has update checks turned off. Run this once, and updates appear inside komainu from then on:
+```bash
+cd ~/tools/komainu && git pull && fork/update.sh && komainu service restart
+```
 
 ## Configuration
 
@@ -213,10 +220,10 @@ Attacks are naturally graph-shaped: a source leads to a session, then an action,
 Not by default. Neo4j is opt-in, sends only redacted audit records and never sends file contents.
 
 **What's the benchmark?**
-15 prompt-injection attacks where we assume the model fully obeys. None succeed silently: 6 are blocked and 9 need your approval.
+15 prompt-injection attacks where we assume the model fully obeys. None succeed silently: 6 are blocked and 9 need your approval. A live version runs real models against the same attacks; its first run found a bypass (fetching through the code-execution tool), now closed.
 
 **What's next?**
-Sandboxing MCP servers, detecting MCP tools that change behaviour after you trust them, checking packages before install, and live benchmarks with real models. See the [roadmap](docs/ROADMAP.md).
+Sandboxing MCP servers, detecting MCP tools that change behaviour after you trust them, checking packages before install, and larger live benchmarks across more models. See the [roadmap](docs/ROADMAP.md).
 
 **Why the name?**
 Komainu are the guardian lion-dogs at Japanese shrine gates. Nothing passes without a check.
@@ -228,6 +235,8 @@ Komainu are the guardian lion-dogs at Japanese shrine gates. Nothing passes with
 - **Shell commands are refused:** the sandbox isn't installed. Check that `srt -c "echo ok"` works.
 - **Neo4j won't connect:** `/komainu → Neo4j → Test connection` shows the driver's error. Aura URIs start with `neo4j+s://`; a new Aura instance can take a minute to come up. Komainu keeps working (and remembering locally) while it's unreachable.
 - **Image guard says text in images isn't checked:** install `tesseract` (and ImageMagick), and make sure the sandbox works (`srt -c "echo ok"`).
+- **"Plugin failed to load" / "Cannot find package":** the plugin's dependencies are missing. Run `cd ~/tools/komainu && bun install && komainu service restart`.
+- **`/update` seems to hang:** it's usually still downloading; komainu shows its progress as pop-ups. To see every step, cancel and run `komainu-update` in a terminal. A stalled download gives up after 30 seconds without progress, retries, then builds from source.
 - **The agent sees empty files like `komainu.json` or `.bashrc` inside the sandbox:** these are read-only placeholders the sandbox uses to protect paths that don't exist yet. They're not on your disk.
 
 ## Development
@@ -237,14 +246,16 @@ bun install
 bun test           # unit, plugin and (if srt + bubblewrap are present) real sandbox tests
 bun run typecheck  # checked against the real @opencode/plugin types
 bun run bench      # prompt-injection benchmark
+bun run bench/live/run.ts --model <provider/model>   # the same attacks against a real model
 ```
 
 ```
 packages/core              security engine, image guard, security graph, threat memory, Effort Advisor, settings (no OpenCode dependency)
 packages/opencode-plugin   OpenCode adapter: server hooks (index.ts), TUI panels and commands (tui.tsx), optional Neo4j sink (neo4j.ts)
-fork/                      patches, build/install/import scripts, logo source
+fork/                      patches, build/install/update/import scripts, logo source
 presets/                   default config and agent instructions
 bench/injection            prompt-injection benchmark
+bench/live                 live benchmark against real models
 docs/                      threat model, roadmap, screenshots
 ```
 

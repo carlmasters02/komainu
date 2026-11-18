@@ -10,9 +10,11 @@
 - [x] Image guard: attached images checked in the sandbox (OCR as shown, contrast-boosted and downscaled; metadata; hidden files; decompression bombs) before the model sees them
 - [x] Optional Neo4j: stream the graph to Neo4j and share threat memory across machines and teammates
 - [x] Policy-level prompt-injection benchmark (15 cases)
+- [x] Shell writes checked like the write tool (guardrail files, git hooks, secrets, CI config); fetch() inside Code Mode gets the webfetch URL policy, threat memory and taint
 
 **Harness**
-- [x] Own identity: `komainu` command, guardian-lion home screen, separate settings; OpenCode + 3 small patches, re-applied to each upstream release by a daily workflow
+- [x] Own identity: `komainu` command, guardian-lion home screen, separate settings; OpenCode + 4 small patches
+- [x] Automatic sync: every OpenCode release is re-patched, tested and published as a Komainu release (Linux/macOS, compressed, checksummed); komainu shows the update notice and `/update` installs it, with progress
 - [x] Effort Advisor (Tier 0 rules, 0 tokens): suggests a better effort before a prompt runs, from each model's own effort ladder; `/advisor` suggest / auto / off
 - [x] Spend tracker: today / 7 days / 30 days, tokens on subscription plans, daily budget warnings
 - [x] Runtime switches via `/advisor`, `/spend`, `/komainu` (no restarts); one-step import of existing OpenCode settings
@@ -25,10 +27,13 @@
 - [ ] `/security-review` command that runs the reviewer sub-agent on the current diff
 - [ ] Explain blocks inside the permission prompt itself (today the reason arrives as a popup beside it)
 - [ ] Image guard: more resampling filters and sizes per provider; optional local vision-model check for stylised text OCR misses
+- [ ] Signed releases (e.g. minisign or Sigstore) verified by `komainu-update`, so a compromised release can't pass as genuine
+- [ ] Parse writes made through interpreters (`python -c`, `node -e`) like shell writes
 - [ ] Publish `@komainu/core` and `@komainu/opencode` to npm with provenance (sigstore)
 
 ## v0.3: Prove it
-- [ ] Live benchmark: run real models (Claude, GPT, Gemini, Qwen and other local models) against injection cases end-to-end, stock vs Komainu
+- [x] Live benchmark harness (`bench/live`): real models, real komainu, throwaway HOME with fake secrets; first run found and closed the Code Mode fetch bypass
+- [ ] Live benchmark at scale: more models (Claude, GPT, Gemini, Qwen and local models), repeated runs, harder payloads, published results
 - [ ] Image-injection benchmark: faint-text and scaling-attack images (e.g. generated with Trail of Bits' Anamorpher) across providers
 - [ ] Secure-code benchmark: vulnerable-code rate on standard secure-coding test suites with and without the scan-and-correct loop
 - [ ] Public leaderboard page; community-submitted attack cases

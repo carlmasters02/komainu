@@ -27,6 +27,9 @@ The user is trusted. The model is **not** trusted. Its intent can be hijacked by
 | Write-time scanning | Insecure code being committed | Regex false negatives (Semgrep is the deeper layer) |
 | Audit log | Silent tampering with history | An attacker with full write access can truncate the log (keep an off-box copy; the optional Neo4j sink is one) |
 | Image guard | Prompt injections in pasted images (faint text, image-scaling attacks, poisoned metadata, polyglots, decoder exploits) | OCR misses stylised or adversarial text; models may resample differently than the filters checked. Decoding runs sandboxed with no network, so a decoder exploit is contained |
+| Code Mode fetch policy | Scripts in OpenCode's `execute` tool fetching URLs the webfetch tool would block or ask about (exfil in query strings, cloud metadata, re-fetching a refused page) | Code Mode tool calls other than fetch rely on those tools' own hooks |
+| Shell write targets | `echo`/`tee`/`cp`/`sed -i` into git hooks, Komainu or OpenCode config, secret or CI files, bypassing the write tool's checks | Writes through interpreters (`python -c`, `node -e`) aren't parsed; the sandbox's read-only mounts still protect guardrail files |
+| Update channel | Tampered or truncated downloads (SHA256SUMS checked; builds from source on mismatch) | Checksums come from the same GitHub release, so a compromised release or GitHub account isn't detected; signed releases are on the roadmap |
 | Threat memory | The same poisoned source or exfil domain working twice, in any project | Attacker rotates domains. Memory only escalates allow → ask, so poisoning it can't grant access, only cause extra prompts |
 | Integration credentials | Agent reading the Neo4j password | Stored in `~/.local/state/komainu/credentials.json`: secret-file name (policy) + sandbox `denyRead`, not in env or config |
 
