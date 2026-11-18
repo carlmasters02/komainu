@@ -65,7 +65,7 @@ if [ -d "$REPO/.git" ] && [ -z "${KOMAINU_UPDATE_PULLED:-}" ]; then
   args=(); $FROM_SOURCE && args+=(--source); [ -n "$WANT" ] && args+=("$WANT")
   KOMAINU_UPDATE_PULLED=1 exec "$FORK/update.sh" ${args[@]+"${args[@]}"}
 fi
-[ -n "$WANT" ] || WANT="$(sed 's/^v//' "$FORK/UPSTREAM")-komainu"
+[ -n "$WANT" ] || WANT="$(sed 's/^v//' "$FORK/UPSTREAM")-komainu$([ -s "$FORK/REVISION" ] && echo ".$(cat "$FORK/REVISION")")"
 
 progress deps "Installing plugin dependencies"
 (cd "$REPO" && bun install >/dev/null)
