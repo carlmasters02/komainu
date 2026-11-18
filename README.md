@@ -85,7 +85,7 @@ RETURN s.key, count(e) AS incidents, collect(DISTINCT p.path) AS projects ORDER 
 | `balanced` (default) | 6 | 9 | **0** |
 | `strict` | 8 | 7 | **0** |
 
-These are policy-level tests against cases written for this project; live end-to-end evaluation against real models is on the [roadmap](docs/ROADMAP.md). New attack cases are very welcome.
+These are policy-level tests against cases written for this project. To see how a real model behaves, `bun run bench/live/run.ts --model <provider/model>` hides the same attacks in ordinary-looking setup guides and GitHub issues, asks komainu to do the task, and reports whether the model tried each attack and what Komainu did. Every run uses a throwaway home folder with fake secrets. New attack cases are very welcome.
 
 ### Try the attacks yourself
 

@@ -86,7 +86,7 @@ RETURN s.key, count(e) AS incidents, collect(DISTINCT p.path) AS projects ORDER 
 | `balanced`（既定） | 6 | 9 | **0** |
 | `strict` | 8 | 7 | **0** |
 
-これはこのプロジェクト用に作成したケースに対するポリシーレベルのテストです。実際のモデルを使ったエンドツーエンドの評価は[ロードマップ](docs/ROADMAP.md)にあります。新しい攻撃ケースの提供を歓迎します。
+これはこのプロジェクト用に作成したケースに対するポリシーレベルのテストです。実際のモデルの振る舞いを確かめるには、`bun run bench/live/run.ts --model <provider/model>` を実行します。同じ攻撃を普通に見えるセットアップガイドや GitHub issue に仕込み、komainu にタスクを依頼して、モデルが攻撃を試みたか、Komainu がどう対処したかを報告します。各実行は偽の秘密情報を置いた使い捨てのホームフォルダで行われます。新しい攻撃ケースの提供を歓迎します。
 
 ### 攻撃を自分で試す
 
