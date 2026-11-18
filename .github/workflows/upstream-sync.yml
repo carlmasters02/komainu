@@ -103,7 +103,12 @@ jobs:
           mkdir -p release
           for target in linux-x64 linux-arm64 darwin-arm64 darwin-x64; do
             OPENCODE_TARGET=$target fork/build.sh "${{ steps.version.outputs.upstream }}"
+            # Compressed archives are what komainu-update downloads (xz ~3x smaller, gzip as a fallback).
+            # The plain binary stays for update scripts from before the archives existed.
             cp fork/dist/komainu "release/komainu-$target"
+            rm -rf pkg && mkdir pkg && cp fork/dist/komainu pkg/komainu
+            XZ_OPT="-6 -T0" tar -C pkg -cJf "release/komainu-$target.tar.xz" komainu
+            tar -C pkg -czf "release/komainu-$target.tar.gz" komainu
           done
           ./release/komainu-linux-x64 --version | grep -q "$KOMAINU_VERSION"
           (cd release && sha256sum komainu-* > SHA256SUMS && cat SHA256SUMS)

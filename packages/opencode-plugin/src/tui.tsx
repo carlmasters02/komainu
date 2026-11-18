@@ -13,12 +13,13 @@
  */
 import type { Plugin } from "@opencode/plugin/tui"
 import {
-  readSettings, settingsPath, writeSettings, writeSecurityGraph, ThreatMemory, memoryPath, readNeo4jCredentials, writeNeo4jCredentials,
+  readSettings, settingsDir, settingsPath, writeSettings, writeSecurityGraph, ThreatMemory, memoryPath, readNeo4jCredentials, writeNeo4jCredentials,
   parseAuraCredentials, validNeo4jUri, credentialsPath, findImageTools, srtBinary, type ImageGuardMode, type EffortMode, type KomainuSettings, type Neo4jCredentials,
 } from "@komainu/core"
 import { spawn } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
+import { join } from "node:path"
 import { createMemo, createSignal, Show } from "solid-js"
 import { ADVISOR_RPC, type AdvisorChoice, type AdvisorQuestion, type ImageAlert, type ImageChoice } from "./advisor-rpc.js"
 
@@ -60,6 +61,7 @@ const plugin: Plugin.Definition = {
       ctx.ui.slot({ append: "prompt.footer.status", render: (input) => <Show when={prefs.mode() !== "off"}><EffortLine ctx={ctx} sessionID={input.sessionID} mode={prefs.mode()} /></Show> }),
       listenForQuestions(ctx, setSettings),
       listenForImages(ctx),
+      watchUpdateProgress(ctx),
       ctx.client.rpc(ADVISOR_RPC).events.on("notice", (event) => {
         const n = event.data as unknown as { message: string }
         ctx.ui.toast.show({ variant: "warning", message: n.message })
@@ -75,6 +77,28 @@ const plugin: Plugin.Definition = {
   },
 }
 export default plugin
+
+/**
+ * /update runs komainu-update in the background with no output of its own, which looks like a hang on a slow
+ * connection. The script writes its progress to a small file; show each new step as a toast.
+ */
+function watchUpdateProgress(ctx: Ctx) {
+  const file = join(settingsDir(), "update-progress.json")
+  let last = ""
+  const timer = setInterval(() => {
+    let raw: string
+    try { raw = readFileSync(file, "utf8") } catch { return }
+    if (raw === last) return
+    last = raw
+    try {
+      const p = JSON.parse(raw) as { stage: string; message: string; at: number }
+      if (Date.now() / 1000 - p.at > 20) return
+      const end = p.stage === "done" || p.stage === "failed"
+      ctx.ui.toast.show({ variant: p.stage === "failed" ? "error" : end ? "success" : "info", message: `⛩ ${p.message}`, duration: end ? 10_000 : 4_000 })
+    } catch {}
+  }, 1000)
+  return () => clearInterval(timer)
+}
 
 // ---------------------------------------------------------------- effort advisor
 

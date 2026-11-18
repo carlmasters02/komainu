@@ -156,7 +156,7 @@ cd your-project && komainu
 bun fork/import-opencode-settings.ts && komainu service restart
 ```
 
-**Updating:** Komainu tells you when an update is out, just like OpenCode does. Accept the notice or run `/update` inside komainu, or run `komainu-update` from a terminal. It pulls the latest code, downloads the matching prebuilt binary (checksum-verified, or builds from source if there isn't one for your machine), and installs it. Every OpenCode release gets a matching Komainu release automatically, usually within a few hours, so you get the same fixes and security updates.
+**Updating:** Komainu tells you when an update is out, just like OpenCode does. Accept the notice or run `/update` inside komainu, or run `komainu-update` from a terminal. It pulls the latest code, downloads the matching prebuilt binary (a ~70 MB compressed archive, checksum-verified; it builds from source if there isn't one for your machine or the download stalls), and installs it, showing progress as it goes. Every OpenCode release gets a matching Komainu release automatically, usually within a few hours, so you get the same fixes and security updates.
 
 ## Configuration
 
