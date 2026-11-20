@@ -7,6 +7,9 @@
 #               OPENCODE_TARGET (cross-build, e.g. darwin-arm64; default: this machine)
 set -euo pipefail
 
+export PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH"   # finds Bun even before the terminal is reopened
+command -v bun >/dev/null || { echo "✗ Bun isn't installed. Install it with: curl -fsSL https://bun.sh/install | bash   then run this again." >&2; exit 1; }
+
 FORK="$(cd "$(dirname "$0")" && pwd)"
 TAG="${1:-$(cat "$FORK/UPSTREAM")}"
 SRC="$FORK/.work/opencode-$TAG"

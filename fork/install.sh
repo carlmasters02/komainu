@@ -4,6 +4,9 @@
 #   fork/install.sh --force-config   # also overwrite ~/.config/komainu config with the preset
 set -euo pipefail
 
+export PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH"   # finds Bun even before the terminal is reopened
+command -v bun >/dev/null || { echo "✗ Bun isn't installed. Install it with: curl -fsSL https://bun.sh/install | bash   then run this again." >&2; exit 1; }
+
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${KOMAINU_BIN_DIR:-$HOME/.local/bin}"
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}/komainu"

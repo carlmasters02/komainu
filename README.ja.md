@@ -143,7 +143,7 @@ Windows 11、または Windows 10 バージョン 2004 以降が必要です。
 ### <img src="docs/assets/os/linux.svg" height="20" alt="Linux logo"> Linux（Ubuntu、Debian、Fedora、WSL）
 ```bash
 (
-set -e
+set -eo pipefail
 if command -v apt-get >/dev/null; then
   sudo apt-get update
   sudo apt-get install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
@@ -164,7 +164,7 @@ fork/install.sh
 ### <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/os/apple-dark.svg"><img src="docs/assets/os/apple.svg" height="20" alt="Apple logo"></picture> macOS
 ```bash
 (
-set -e
+set -eo pipefail
 command -v brew >/dev/null || [ -x /opt/homebrew/bin/brew ] || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
 grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
