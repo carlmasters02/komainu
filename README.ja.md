@@ -129,60 +129,61 @@ Komainu のコマンド名は OpenCode の組み込みコマンドと重なら�
 
 ## インストール
 
-**Linux**、**macOS**、**Windows**（Windows 上で Linux を動かす WSL を使います）で動作します。すべての手順はターミナルにコピー＆ペーストするコマンドなので、Linux の知識は不要です。所要時間は約 10 分です。
+**Linux**、**macOS**、**Windows**（Windows 上で Linux を動かす WSL を使います）で動作します。自分のシステムのブロックを 1 つだけターミナルにコピーして Enter を押してください。Linux の知識は不要です。所要時間は約 10 分です。何度実行しても安全です：インストール済みのものは飛ばし、Komainu は最新版に更新されます。
 
-### <img src="docs/assets/os/windows.svg" height="20" alt="Windows logo"> ステップ 0（Windows のみ）：WSL をセットアップ
+### <img src="docs/assets/os/windows.svg" height="20" alt="Windows logo"> Windows
 1. **スタート**をクリックして **PowerShell** と入力し、右クリックして**管理者として実行**を選びます。
-2. 次を貼り付けて Enter を押します：
-   ```powershell
-   wsl --install
-   ```
+2. `wsl --install` を貼り付けて Enter を押します。
 3. 再起動を求められたら、パソコンを再起動します。
 4. 再起動後、スタートメニューから **Ubuntu** を開きます。初回はユーザー名とパスワードの作成を求められます（パスワードは入力中に表示されませんが、正常です）。
+5. その **Ubuntu** のウィンドウに、下の **Linux** のブロックを貼り付けます。以降、Komainu はこの Ubuntu のウィンドウで使います。
 
-以降のコマンドはすべてこの **Ubuntu** のウィンドウで実行し、下の **Ubuntu** の手順に従ってください。Windows 11、または Windows 10 バージョン 2004 以降が必要です。
+Windows 11、または Windows 10 バージョン 2004 以降が必要です。
 
-### ステップ 1：Komainu に必要なツールをインストール
-自分のシステムのブロックだけコピーしてください。git、サンドボックスの補助ツール、任意の画像ツール 2 つ（Image guard が画像内の文字を読めるようになります）、Komainu が動く JavaScript ランタイムの [Bun](https://bun.sh) をインストールします。Node.js は不要です。
-
-<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Ubuntu / Debian / WSL**（`sudo` はパスワードを求めます）：
+### <img src="docs/assets/os/linux.svg" height="20" alt="Linux logo"> Linux（Ubuntu、Debian、Fedora、WSL）
 ```bash
-sudo apt update && sudo apt install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
-curl -fsSL https://bun.sh/install | bash
-exec bash
-```
-
-<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Fedora：**
-```bash
-sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
-curl -fsSL https://bun.sh/install | bash
-exec bash
-```
-
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/os/apple-dark.svg"><img src="docs/assets/os/apple.svg" height="18" alt="Apple logo"></picture> **macOS：** `brew --version` が「command not found」と表示する場合は、先に [Homebrew](https://brew.sh) をインストールし、最後に表示される「Next steps」の行を実行してください：
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-その後：
-```bash
-brew install git tesseract imagemagick
-curl -fsSL https://bun.sh/install | bash
-exec zsh
-```
-（macOS にはサンドボックスが組み込まれています。）
-
-`curl … | bash` の行は Bun と Homebrew の公式インストーラーです。`exec bash` / `exec zsh` はターミナルを読み込み直し、新しい `bun` コマンドを使えるようにします。
-
-### ステップ 2：Komainu をダウンロードしてインストール（どのシステムでも同じです）
-```bash
-git clone https://github.com/carlmasters02/komainu ~/tools/komainu
+(
+set -e
+if command -v apt-get >/dev/null; then
+  sudo apt-get update
+  sudo apt-get install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
+else
+  sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
+fi
+[ -x ~/.bun/bin/bun ] || curl -fsSL https://bun.sh/install | bash
+export PATH="$HOME/.bun/bin:$PATH"
+[ -d ~/tools/komainu ] || git clone https://github.com/carlmasters02/komainu ~/tools/komainu
 cd ~/tools/komainu
-fork/build.sh            # komainu をビルド：OpenCode + Komainu のパッチ（約 1〜2 分）
-fork/install.sh          # komainu、komainu-update、サンドボックスのツールをインストールし、保護を有効化
+git pull --ff-only
+fork/build.sh
+fork/install.sh
+)
 ```
-`install.sh` が `~/.local/bin` が PATH にないと表示した場合は、表示された行を実行してから続けてください。
+`sudo` が一度パスワードを求めます。
 
-### ステップ 3：起動
+### <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/os/apple-dark.svg"><img src="docs/assets/os/apple.svg" height="20" alt="Apple logo"></picture> macOS
+```bash
+(
+set -e
+command -v brew >/dev/null || [ -x /opt/homebrew/bin/brew ] || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
+grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
+brew install git tesseract imagemagick
+[ -x ~/.bun/bin/bun ] || curl -fsSL https://bun.sh/install | bash
+export PATH="$HOME/.bun/bin:$PATH"
+[ -d ~/tools/komainu ] || git clone https://github.com/carlmasters02/komainu ~/tools/komainu
+cd ~/tools/komainu
+git pull --ff-only
+fork/build.sh
+fork/install.sh
+)
+```
+初回は Homebrew のインストーラーが Return キーと Mac のパスワードの入力を求めます。
+
+**ブロックの内容：** git、任意の画像ツール 2 つ（Image guard が画像内の文字を読めるようになります）、Linux ではサンドボックスの補助ツール（macOS にはサンドボックスが組み込まれています）、Komainu が動く JavaScript ランタイムの [Bun](https://bun.sh) を、Bun と Homebrew の公式インストーラーでインストールします。Node.js は不要です。続いて Komainu を `~/tools/komainu` にダウンロードしてビルドし（OpenCode + Komainu のパッチ、約 1〜2 分）、`komainu`、`komainu-update`、サンドボックスのツールをインストールして保護を有効にします。途中で失敗した場合は、そこで止まってエラーを表示します。
+
+### 起動
+新しいコマンドを使えるよう、**新しい**ターミナルを開いてから：
 ```bash
 mkdir -p ~/my-project && cd ~/my-project     # または、コードのある任意のフォルダに cd
 komainu
@@ -270,7 +271,7 @@ MCP サーバーのサンドボックス化、信頼した後に挙動が変わ�
 
 - **`komainu` が固まる、またはサービスのポートが使用中と表示される：** 通常の OpenCode のバックグラウンドサーバーが同じポートを使っている可能性があります。Komainu 専用のポートを設定してください：`komainu service set port 49375`。
 - **プロジェクトに `.komainu/` フォルダができない：** プラグインが読み込まれていません。`komainu debug config` と `komainu --print-logs --log-level info` を確認してください。
-- **シェルコマンドが拒否される：** サンドボックスが動いていません。`fork/install.sh` をもう一度実行し（サンドボックスのツールを設定します）、`srt -c "echo ok"` で `ok` と表示されることを確認してください。Linux では、ステップ 1 の `bubblewrap`、`socat`、`ripgrep` も必要です。
+- **シェルコマンドが拒否される：** サンドボックスが動いていません。`fork/install.sh` をもう一度実行し（サンドボックスのツールを設定します）、`srt -c "echo ok"` で `ok` と表示されることを確認してください。Linux では、Linux のインストールブロックに含まれる `bubblewrap`、`socat`、`ripgrep` も必要です。
 - **Neo4j に接続できない：** `/komainu → Neo4j → Test connection` でドライバーのエラーを確認できます。Aura の URI は `neo4j+s://` で始まります。新しい Aura インスタンスは起動まで 1 分ほどかかることがあります。接続できない間も、Komainu は通常どおり動作し、ローカルで脅威を記憶し続けます。
 - **Image guard が「画像内の文字はチェックされていません」と表示する：** `tesseract`（と ImageMagick）をインストールし、サンドボックスが動くこと（`srt -c "echo ok"`）を確認してください。
 - **「Plugin failed to load」「Cannot find package」と表示される：** プラグインの依存関係が入っていません。`cd ~/tools/komainu && bun install && komainu service restart` を実行してください。

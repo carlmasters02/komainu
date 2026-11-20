@@ -128,60 +128,61 @@ Komainu's command names avoid OpenCode's built-ins (`/effort` is OpenCode's shor
 
 ## Install
 
-Works on **Linux**, **macOS** and **Windows** (through WSL, which runs Linux inside Windows). Every step is a command you copy and paste into a terminal; you don't need to know Linux. It takes about 10 minutes.
+Works on **Linux**, **macOS** and **Windows** (through WSL, which runs Linux inside Windows). Copy the one block for your system into a terminal and press Enter; you don't need to know Linux. It takes about 10 minutes. It's safe to run again: anything already installed is skipped, and Komainu is brought up to date.
 
-### <img src="docs/assets/os/windows.svg" height="20" alt="Windows logo"> Step 0 (Windows only): set up WSL
+### <img src="docs/assets/os/windows.svg" height="20" alt="Windows logo"> Windows
 1. Click **Start**, type **PowerShell**, right-click it and choose **Run as administrator**.
-2. Paste this and press Enter:
-   ```powershell
-   wsl --install
-   ```
+2. Paste `wsl --install` and press Enter.
 3. Restart your computer when it asks.
 4. After the restart, open **Ubuntu** from the Start menu. The first time, it asks you to create a username and password. (The password stays invisible while you type. That's normal.)
+5. In that **Ubuntu** window, paste the **Linux** block below. Use this Ubuntu window for Komainu from now on.
 
-From now on, run every command in that **Ubuntu** window and follow the **Ubuntu** steps below. This needs Windows 11, or Windows 10 version 2004 or newer.
+This needs Windows 11, or Windows 10 version 2004 or newer.
 
-### Step 1: install the tools Komainu needs
-Copy only the block for your system. It installs git, the sandbox's helpers, two optional image tools (they let Image guard read text inside images) and [Bun](https://bun.sh), the JavaScript runtime Komainu runs on. You don't need Node.js.
-
-<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Ubuntu / Debian / WSL** (`sudo` asks for your password):
+### <img src="docs/assets/os/linux.svg" height="20" alt="Linux logo"> Linux (Ubuntu, Debian, Fedora, and WSL)
 ```bash
-sudo apt update && sudo apt install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
-curl -fsSL https://bun.sh/install | bash
-exec bash
-```
-
-<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Fedora:**
-```bash
-sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
-curl -fsSL https://bun.sh/install | bash
-exec bash
-```
-
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/os/apple-dark.svg"><img src="docs/assets/os/apple.svg" height="18" alt="Apple logo"></picture> **macOS:** if `brew --version` says "command not found", install [Homebrew](https://brew.sh) first, and run the "Next steps" lines it prints at the end:
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-Then:
-```bash
-brew install git tesseract imagemagick
-curl -fsSL https://bun.sh/install | bash
-exec zsh
-```
-(macOS has its sandbox built in.)
-
-The `curl … | bash` lines are the official Bun and Homebrew installers. `exec bash` / `exec zsh` reloads the terminal so it finds the new `bun` command.
-
-### Step 2: download and install Komainu (the same on every system)
-```bash
-git clone https://github.com/carlmasters02/komainu ~/tools/komainu
+(
+set -e
+if command -v apt-get >/dev/null; then
+  sudo apt-get update
+  sudo apt-get install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
+else
+  sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
+fi
+[ -x ~/.bun/bin/bun ] || curl -fsSL https://bun.sh/install | bash
+export PATH="$HOME/.bun/bin:$PATH"
+[ -d ~/tools/komainu ] || git clone https://github.com/carlmasters02/komainu ~/tools/komainu
 cd ~/tools/komainu
-fork/build.sh            # builds komainu: OpenCode + Komainu's patches (about 1–2 minutes)
-fork/install.sh          # installs komainu, komainu-update and the sandbox tool, and turns the protections on
+git pull --ff-only
+fork/build.sh
+fork/install.sh
+)
 ```
-If `install.sh` says `~/.local/bin` isn't on your PATH, run the line it prints, then carry on.
+`sudo` asks for your password once.
 
-### Step 3: start it
+### <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/os/apple-dark.svg"><img src="docs/assets/os/apple.svg" height="20" alt="Apple logo"></picture> macOS
+```bash
+(
+set -e
+command -v brew >/dev/null || [ -x /opt/homebrew/bin/brew ] || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
+grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
+brew install git tesseract imagemagick
+[ -x ~/.bun/bin/bun ] || curl -fsSL https://bun.sh/install | bash
+export PATH="$HOME/.bun/bin:$PATH"
+[ -d ~/tools/komainu ] || git clone https://github.com/carlmasters02/komainu ~/tools/komainu
+cd ~/tools/komainu
+git pull --ff-only
+fork/build.sh
+fork/install.sh
+)
+```
+The first time, the Homebrew installer asks you to press Return and type your Mac password.
+
+**What the block does:** installs git, two optional image tools (they let Image guard read text inside images), the sandbox's helpers on Linux (macOS has its sandbox built in) and [Bun](https://bun.sh), the JavaScript runtime Komainu runs on, using the official Bun and Homebrew installers. You don't need Node.js. Then it downloads Komainu into `~/tools/komainu`, builds it (OpenCode plus Komainu's patches, about 1–2 minutes) and installs `komainu`, `komainu-update` and the sandbox tool, with the protections on. If a step fails, the block stops there and shows the error.
+
+### Start it
+Open a **new** terminal so it finds the new commands, then:
 ```bash
 mkdir -p ~/my-project && cd ~/my-project     # or cd into any folder with your code
 komainu
@@ -269,7 +270,7 @@ Komainu are the guardian lion-dogs at Japanese shrine gates. Nothing passes with
 
 - **`komainu` hangs or says the service port is in use:** stock OpenCode's background server may be using the same port. Give Komainu its own: `komainu service set port 49375`.
 - **No `.komainu/` folder appears in your project:** the plugin didn't load. Check `komainu debug config` and `komainu --print-logs --log-level info`.
-- **Shell commands are refused:** the sandbox isn't working. Run `fork/install.sh` again (it sets the sandbox tool up), and make sure `srt -c "echo ok"` prints `ok`. On Linux, the sandbox also needs `bubblewrap`, `socat` and `ripgrep` from Step 1.
+- **Shell commands are refused:** the sandbox isn't working. Run `fork/install.sh` again (it sets the sandbox tool up), and make sure `srt -c "echo ok"` prints `ok`. On Linux, the sandbox also needs `bubblewrap`, `socat` and `ripgrep` from the Linux install block.
 - **Neo4j won't connect:** `/komainu → Neo4j → Test connection` shows the driver's error. Aura URIs start with `neo4j+s://`; a new Aura instance can take a minute to come up. Komainu keeps working (and remembering locally) while it's unreachable.
 - **Image guard says text in images isn't checked:** install `tesseract` (and ImageMagick), and make sure the sandbox works (`srt -c "echo ok"`).
 - **"Plugin failed to load" / "Cannot find package":** the plugin's dependencies are missing. Run `cd ~/tools/komainu && bun install && komainu service restart`.

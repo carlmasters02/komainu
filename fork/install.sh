@@ -74,13 +74,16 @@ case ":$PATH:" in
   *":$BIN:"*) ;;
   *)
     case "${SHELL:-}" in
-      */zsh) RC="~/.zshrc" ;;
-      */fish) RC="~/.config/fish/config.fish" ;;
-      *) RC="~/.bashrc" ;;
+      */zsh) RC="$HOME/.zshrc" ;;
+      */fish) RC="$HOME/.config/fish/config.fish" ;;
+      *) RC="$HOME/.bashrc" ;;
     esac
-    if [ "$RC" = "~/.config/fish/config.fish" ]; then LINE="fish_add_path $BIN"; else LINE="export PATH=\"$BIN:\$PATH\""; fi
-    echo "! $BIN is not on your PATH. Run this now, and add it to $RC:"
-    echo "    $LINE"
+    if [ "$RC" = "$HOME/.config/fish/config.fish" ]; then LINE="fish_add_path $BIN"; else LINE="export PATH=\"$BIN:\$PATH\""; fi
+    if ! grep -qsF "$LINE" "$RC"; then
+      mkdir -p "$(dirname "$RC")"
+      printf '\n# added by Komainu: where the komainu command lives\n%s\n' "$LINE" >> "$RC"
+    fi
+    echo "✓ added $BIN to your PATH in ${RC/#"$HOME"/"~"}. Open a new terminal before running komainu."
     ;;
 esac
 echo "✓ done. Start it in any project folder with: komainu   (type /models and pick a Free model, or run komainu auth login to use your own account)"
