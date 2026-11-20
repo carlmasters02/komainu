@@ -241,8 +241,32 @@ function registerCommands(ctx: Ctx, prefs: Prefs, update: Update, spend: Spend, 
     ctx.ui.toast.show({ variant: "success", message: "Spend tracker updated" })
   }
 
+  const selfTest = async () => {
+    ctx.ui.toast.show({ variant: "info", message: "⛩ Running the Komainu self-test (about 30 seconds)…", duration: 5000 })
+    let report
+    try {
+      const { runSelfTest } = await import("./selftest.js")
+      report = await runSelfTest((step) => ctx.ui.toast.show({ variant: "info", message: `⛩ Self-test: checking ${step}…`, duration: 4000 }))
+    } catch (e) {
+      ctx.ui.toast.show({ variant: "error", message: `⛩ The self-test itself crashed: ${String(e).slice(0, 200)}`, duration: 10_000 })
+      return
+    }
+    const { counts, checks, path } = report
+    const icon = { pass: "✓", warn: "!", fail: "✗" } as const
+    const order = { fail: 0, warn: 1, pass: 2 } as const
+    const sorted = [...checks].sort((a, b) => order[a.status] - order[b.status])
+    const where = path.replace(homedir(), "~")
+    const pick = await ctx.ui.dialog.select<number>({
+      title: `⛩ Self-test: ${counts.pass} passed · ${counts.warn} warning${counts.warn === 1 ? "" : "s"} · ${counts.fail} failed`,
+      placeholder: counts.fail || counts.warn ? `Report: ${where} (attach it to a GitHub issue)` : `All good. Report: ${where}`,
+      options: sorted.map((c, i) => ({ title: `${icon[c.status]} ${c.area} · ${c.name}`, value: i, description: c.detail.length > 70 ? c.detail.slice(0, 69) + "…" : c.detail })),
+    })
+    if (pick !== undefined && sorted[pick])
+      await ctx.ui.dialog.alert({ title: `${icon[sorted[pick]!.status]} ${sorted[pick]!.area} · ${sorted[pick]!.name}`, message: `${sorted[pick]!.detail}\n\nFull report: ${where}` })
+  }
+
   const hub = async () => {
-    type Item = "graph" | "memory" | "images" | "neo4j" | "advisor" | "spend" | "sponsors" | "about"
+    type Item = "graph" | "memory" | "images" | "neo4j" | "advisor" | "spend" | "sponsors" | "selftest" | "about"
     const remembered = new ThreatMemory().list().length
     const memoryOn = settings().memory?.enabled !== false
     const neo4j = readNeo4jCredentials()
@@ -256,6 +280,7 @@ function registerCommands(ctx: Ctx, prefs: Prefs, update: Update, spend: Spend, 
         { title: `Effort Advisor: ${prefs.mode()}`, value: "advisor", description: "/advisor" },
         { title: `Spend tracker: ${prefs.showSpend() ? "shown" : "hidden"}${prefs.daily() ? `, budget ${money.format(prefs.daily()!)}/day` : ""}`, value: "spend", description: "/spend" },
         { title: "Sponsors", value: "sponsors", description: settings().sponsors?.enabled === false ? "messages off" : "ai&" },
+        { title: "Run self-test", value: "selftest", description: "/testkomainu · checks this install" },
         { title: "Where things live", value: "about" },
       ],
     })
@@ -266,6 +291,7 @@ function registerCommands(ctx: Ctx, prefs: Prefs, update: Update, spend: Spend, 
     if (choice === "advisor") return advisor()
     if (choice === "spend") return spendMenu()
     if (choice === "sponsors") return sponsorsMenu(ctx, settings, update)
+    if (choice === "selftest") return selfTest()
     if (choice === "about")
       await ctx.ui.dialog.alert({
         title: "Komainu",
@@ -286,6 +312,7 @@ function registerCommands(ctx: Ctx, prefs: Prefs, update: Update, spend: Spend, 
       { id: "komainu.advisor", title: "Komainu: Effort Advisor mode", group: "Komainu", slash: { name: "advisor" }, palette: true, run: advisor },
       { id: "komainu.spend", title: "Komainu: spend tracker", group: "Komainu", slash: { name: "spend" }, palette: true, run: spendMenu },
       { id: "komainu.menu", title: "Komainu", group: "Komainu", slash: { name: "komainu" }, palette: true, run: hub },
+      { id: "komainu.selftest", title: "Komainu: run self-test", group: "Komainu", slash: { name: "testkomainu" }, palette: true, run: selfTest },
       { id: "komainu.graph", title: "Komainu: security graph", group: "Komainu", palette: true, run: () => openGraph(ctx) },
     ],
   }))

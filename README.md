@@ -190,7 +190,7 @@ komainu
 Use any folder with your code in place of `~/my-project`.
 Type `/models` to choose an AI model. Models with **Free** in the name work without an account. To use your own account instead (Claude, ChatGPT, GitHub Copilot, an API key…), quit and run `komainu auth login` first.
 
-**Check that everything works:** `komainu --version` shows the version, and `srt -c "echo sandbox ok"` prints `sandbox ok`.
+**Check that everything works:** type `/testkomainu` inside komainu. In about 30 seconds it checks your install, the sandbox (with harmless probes: a fake `.env` in a temporary folder, a write outside the project, a blocked website), the protections and the prompt-injection attacks, then shows the results and saves a report to `~/.local/state/komainu/selftest/`. If anything fails, attach that report to a [GitHub issue](https://github.com/carlmasters02/komainu/issues/new); it contains no secrets. Without komainu running, `bun run selftest` in `~/tools/komainu` does the same.
 
 **Already use OpenCode?** Bring over your MCP servers, plugins, model, providers, custom agents, commands and AGENTS.md in one step (your stock OpenCode stays untouched):
 ```bash
@@ -268,6 +268,8 @@ Sandboxing MCP servers, detecting MCP tools that change behaviour after you trus
 Komainu are the guardian lion-dogs at Japanese shrine gates. Nothing passes without a check.
 
 ## Troubleshooting
+
+Start with `/testkomainu` (or `bun run selftest` in `~/tools/komainu`): it names what is wrong and how to fix it.
 
 - **`komainu` hangs or says the service port is in use:** stock OpenCode's background server may be using the same port. Give Komainu its own: `komainu service set port 49375`.
 - **No `.komainu/` folder appears in your project:** the plugin didn't load. Check `komainu debug config` and `komainu --print-logs --log-level info`.

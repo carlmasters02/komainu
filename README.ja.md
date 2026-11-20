@@ -191,7 +191,7 @@ komainu
 `~/my-project` の代わりに、コードのある任意のフォルダを使えます。
 `/models` と入力して AI モデルを選びます。名前に **Free** が付いたモデルはアカウントなしで使えます。自分のアカウント（Claude、ChatGPT、GitHub Copilot、API キーなど）を使う場合は、いったん終了して先に `komainu auth login` を実行してください。
 
-**動作確認：** `komainu --version` でバージョンが表示され、`srt -c "echo sandbox ok"` で `sandbox ok` と表示されれば完了です。
+**動作確認：** komainu の中で `/testkomainu` と入力します。約 30 秒で、インストール、サンドボックス（一時フォルダの偽の `.env`、プロジェクト外への書き込み、ブロックされる Web サイトといった無害なテスト）、保護機能、プロンプトインジェクション攻撃をチェックし、結果を表示してレポートを `~/.local/state/komainu/selftest/` に保存します。失敗があれば、そのレポートを [GitHub の Issue](https://github.com/carlmasters02/komainu/issues/new) に添付してください（秘密情報は含まれません）。komainu を起動していなくても、`~/tools/komainu` で `bun run selftest` を実行すれば同じチェックができます。
 
 **すでに OpenCode を使っている場合：** MCP サーバー、プラグイン、モデル、プロバイダー、カスタムエージェント、コマンド、AGENTS.md を一度に移行できます（元の OpenCode には影響しません）。
 ```bash
@@ -269,6 +269,8 @@ MCP サーバーのサンドボックス化、信頼した後に挙動が変わ�
 狛犬は、神社の入口に立つ守り神です。チェックなしに通れるものはありません。
 
 ## トラブルシューティング
+
+まず `/testkomainu`（または `~/tools/komainu` で `bun run selftest`）を実行してください。何が問題で、どう直せばよいかを表示します。
 
 - **`komainu` が固まる、またはサービスのポートが使用中と表示される：** 通常の OpenCode のバックグラウンドサーバーが同じポートを使っている可能性があります。Komainu 専用のポートを設定してください：`komainu service set port 49375`。
 - **プロジェクトに `.komainu/` フォルダができない：** プラグインが読み込まれていません。`komainu debug config` と `komainu --print-logs --log-level info` を確認してください。

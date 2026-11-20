@@ -6,7 +6,8 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc -p packages/core && tsc -p packages/opencode-plugin",
-    "bench": "bun run bench/injection/run.ts"
+    "bench": "bun run bench/injection/run.ts",
+    "selftest": "bun run packages/opencode-plugin/src/selftest.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
