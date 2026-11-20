@@ -167,8 +167,8 @@ fork/install.sh
 set -eo pipefail
 command -v brew >/dev/null || [ -x /opt/homebrew/bin/brew ] || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
-grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
 brew install git tesseract imagemagick
+grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
 [ -x ~/.bun/bin/bun ] || curl -fsSL https://bun.sh/install | bash
 export PATH="$HOME/.bun/bin:$PATH"
 [ -d ~/tools/komainu ] || git clone https://github.com/carlmasters02/komainu ~/tools/komainu
@@ -185,9 +185,10 @@ fork/install.sh
 ### 起動
 新しいコマンドを使えるよう、**新しい**ターミナルを開いてから：
 ```bash
-mkdir -p ~/my-project && cd ~/my-project     # または、コードのある任意のフォルダに cd
+mkdir -p ~/my-project && cd ~/my-project
 komainu
 ```
+`~/my-project` の代わりに、コードのある任意のフォルダを使えます。
 `/models` と入力して AI モデルを選びます。名前に **Free** が付いたモデルはアカウントなしで使えます。自分のアカウント（Claude、ChatGPT、GitHub Copilot、API キーなど）を使う場合は、いったん終了して先に `komainu auth login` を実行してください。
 
 **動作確認：** `komainu --version` でバージョンが表示され、`srt -c "echo sandbox ok"` で `sandbox ok` と表示されれば完了です。
@@ -282,11 +283,12 @@ MCP サーバーのサンドボックス化、信頼した後に挙動が変わ�
 
 ```bash
 bun install
-bun test           # ユニットテスト、プラグインテスト、（srt と bubblewrap があれば）実際のサンドボックスのテスト
-bun run typecheck  # 実際の @opencode/plugin の型に対してチェック
-bun run bench      # プロンプトインジェクションのベンチマーク
-bun run bench/live/run.ts --model <provider/model>   # 同じ攻撃を実際のモデルで実行
+bun test
+bun run typecheck
+bun run bench
+bun run bench/live/run.ts --model <provider/model>
 ```
+上から順に：依存関係のインストール、ユニットテスト・プラグインテスト・（srt と bubblewrap があれば）実際のサンドボックスのテスト、実際の @opencode/plugin の型に対するチェック、プロンプトインジェクションのベンチマーク、同じ攻撃を実際のモデルで実行。
 
 ```
 packages/core              セキュリティエンジン、画像ガード、セキュリティグラフ、脅威メモリ、Effort Advisor、設定（OpenCode への依存なし）

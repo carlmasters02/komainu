@@ -166,8 +166,8 @@ fork/install.sh
 set -eo pipefail
 command -v brew >/dev/null || [ -x /opt/homebrew/bin/brew ] || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
-grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
 brew install git tesseract imagemagick
+grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
 [ -x ~/.bun/bin/bun ] || curl -fsSL https://bun.sh/install | bash
 export PATH="$HOME/.bun/bin:$PATH"
 [ -d ~/tools/komainu ] || git clone https://github.com/carlmasters02/komainu ~/tools/komainu
@@ -184,9 +184,10 @@ The first time, the Homebrew installer asks you to press Return and type your Ma
 ### Start it
 Open a **new** terminal so it finds the new commands, then:
 ```bash
-mkdir -p ~/my-project && cd ~/my-project     # or cd into any folder with your code
+mkdir -p ~/my-project && cd ~/my-project
 komainu
 ```
+Use any folder with your code in place of `~/my-project`.
 Type `/models` to choose an AI model. Models with **Free** in the name work without an account. To use your own account instead (Claude, ChatGPT, GitHub Copilot, an API key…), quit and run `komainu auth login` first.
 
 **Check that everything works:** `komainu --version` shows the version, and `srt -c "echo sandbox ok"` prints `sandbox ok`.
@@ -281,11 +282,12 @@ Komainu are the guardian lion-dogs at Japanese shrine gates. Nothing passes with
 
 ```bash
 bun install
-bun test           # unit, plugin and (if srt + bubblewrap are present) real sandbox tests
-bun run typecheck  # checked against the real @opencode/plugin types
-bun run bench      # prompt-injection benchmark
-bun run bench/live/run.ts --model <provider/model>   # the same attacks against a real model
+bun test
+bun run typecheck
+bun run bench
+bun run bench/live/run.ts --model <provider/model>
 ```
+In order: install dependencies; run the unit, plugin and (if srt and bubblewrap are present) real sandbox tests; check against the real @opencode/plugin types; run the prompt-injection benchmark; run the same attacks against a real model.
 
 ```
 packages/core              security engine, image guard, security graph, threat memory, Effort Advisor, settings (no OpenCode dependency)

@@ -22,11 +22,10 @@ The security layers, Effort Advisor, spend tracker and `/advisor` `/spend` `/kom
 
 ## Build and install
 ```bash
-fork/build.sh        # ~1 minute the first time, then seconds
+fork/build.sh
 fork/install.sh
-komainu auth login   # first run only
-komainu              # in any project
 ```
+The build takes about a minute the first time, then seconds. Then run `komainu` in any project (`komainu auth login` first, if you want to use your own account).
 
 ## Staying in sync with OpenCode
 `.github/workflows/upstream-sync.yml` runs every 6 hours:
@@ -39,12 +38,13 @@ Komainu-only fixes to the binary (a patch change with no new OpenCode release): 
 
 ## Updating the patches
 ```bash
-fork/build.sh vX.Y.Z                         # shows which patch failed
+fork/build.sh vX.Y.Z
 cd fork/.work/opencode-vX.Y.Z
-git am --3way ../../patches/*.patch          # resolve conflicts, git add, git am --continue
-git format-patch -q vX.Y.Z -o ../../patches  # rewrite the patch files
+git am --3way ../../patches/*.patch
+git format-patch -q vX.Y.Z -o ../../patches
 echo vX.Y.Z > ../../UPSTREAM
 ```
+`build.sh` shows which patch failed. When `git am` stops on a conflict, resolve it, `git add` the files and run `git am --continue`. `format-patch` then rewrites the patch files.
 
 ## Rules that keep sync cheap
 - Put features in the **plugin** whenever the plugin API allows it; patch OpenCode only for things plugins can't do (branding, core behaviour).
