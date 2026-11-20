@@ -39,10 +39,10 @@ export const DEFAULT_DENY_WRITE = [
  * Finds srt. install.sh puts its own srt next to the komainu binary only when the one on PATH is missing or
  * broken, so that copy comes first; then PATH; then ~/.local/bin, for when that folder isn't on PATH yet.
  */
-export function srtBinary(execPath = process.execPath, home = homedir()): string | undefined {
+export function srtBinary(execPath = process.execPath, home = homedir(), path = process.env.PATH ?? ""): string | undefined {
   const besideKomainu = join(dirname(execPath), "srt")
   if (existsSync(besideKomainu)) return besideKomainu
-  const onPath = Bun.which("srt")
+  const onPath = Bun.which("srt", { PATH: path })
   if (onPath) return onPath
   const local = join(home, ".local", "bin", "srt")
   return existsSync(local) ? local : undefined
