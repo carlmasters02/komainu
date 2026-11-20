@@ -14,7 +14,7 @@
 import type { Plugin } from "@opencode/plugin"
 import {
   AuditLog, DEFAULT_ALLOWED_DOMAINS, DEFAULT_PROTECTED, decideFetch, decideFileAccess, decideShell, fence, formatFindingsForModel,
-  isWrapped, redact, redactDeep, resolvePath, scanForInjection, scanSource, scanWithSemgrep, srtBinary, strongest, TaintTracker,
+  isWrapped, redact, redactDeep, resolvePath, scanForInjection, scanSource, scanWithSemgrep, sandboxToolPaths, srtBinary, strongest, TaintTracker,
   wrapCommand, writeSrtSettings, assessPrompt, cachedSettings, decideEffort, writeSettings, ThreatMemory, sourceKey, sourceScope, hostOf, commandHosts, rememberableHosts, isMultiTenantHost,
   describeIncident, cachedNeo4jCredentials, scanImage, sniffType, describeOcrStatus, type ImageVerdict, type AuditEvent, type Decision, type Finding, type Incident, type Mode, type PolicyConfig,
 } from "@komainu/core"
@@ -84,7 +84,7 @@ export function createKomainu(options: KomainuOptions = {}) {
       const opts = { ...options, ...(ctx.options as KomainuOptions | undefined) }
       const workspace = ctx.location.directory
       const stateDir = opts.stateDir ?? join(workspace, ".komainu")
-      const policy: PolicyConfig = { mode: opts.mode ?? "balanced", workspace, protectedPaths: DEFAULT_PROTECTED }
+      const policy: PolicyConfig = { mode: opts.mode ?? "balanced", workspace, protectedPaths: [...DEFAULT_PROTECTED, ...sandboxToolPaths(srtBinary())] }
       const taint = new TaintTracker(undefined, new Set(opts.trustedTools ?? []))
       const auditLog = new AuditLog(join(stateDir, "audit.jsonl"))
       const settings = cachedSettings()
