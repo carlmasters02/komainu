@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { srtBinary } from "../src/sandbox.js"
+import { decideFileAccess } from "../src/policy.js"
+import { sandboxToolPaths, srtBinary } from "../src/sandbox.js"
 
 // install.sh puts a Bun-run srt next to komainu when Node.js is missing; komainu must find it even when that
 // folder isn't on PATH yet (a beginner who skipped the PATH step).
@@ -24,5 +25,18 @@ describe("srtBinary", () => {
 
   test("is undefined when there is no srt anywhere", () => {
     expect(srtBinary("/nonexistent/komainu", "/nonexistent", "/nonexistent")).toBeUndefined()
+  })
+})
+
+describe("sandboxToolPaths", () => {
+  test("the write tool can't silently replace srt or what its wrapper runs", () => {
+    const bin = mkdtempSync(join(tmpdir(), "srt-guard-"))
+    const cli = join(bin, "pkg", "dist", "cli.js")
+    mkdirSync(join(bin, "pkg", "dist"), { recursive: true })
+    writeFileSync(cli, "")
+    writeFileSync(join(bin, "srt"), `#!/bin/sh\nexec "/usr/bin/bun" --bun "${cli}" "$@"\n`)
+    const cfg = { mode: "balanced" as const, workspace: "/tmp/project", protectedPaths: sandboxToolPaths(join(bin, "srt"), join(bin, "komainu")) }
+    for (const target of [join(bin, "srt"), join(bin, "komainu"), join(bin, "komainu-update"), cli])
+      expect(decideFileAccess("write", target, cfg, { tainted: false }).effect).not.toBe("allow")
   })
 })

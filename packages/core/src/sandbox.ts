@@ -5,7 +5,7 @@
  * fork/install.sh sets srt up (installed with Bun and run on Bun when Node.js is missing or too old);
  * Linux also needs bubblewrap, socat and ripgrep.
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { SENSITIVE_DENY_READ_GLOBS } from "./secrets.js"
@@ -46,6 +46,25 @@ export function srtBinary(execPath = process.execPath, home = homedir(), path = 
   if (onPath) return onPath
   const local = join(home, ".local", "bin", "srt")
   return existsSync(local) ? local : undefined
+}
+
+/**
+ * Files that decide whether the sandbox runs at all: the srt in use (and what a wrapper points at) plus the komainu
+ * binaries beside it. The write/edit tools run outside srt, so these must count as guardrails like the config files.
+ */
+export function sandboxToolPaths(srt: string | undefined, execPath = process.execPath): string[] {
+  const bin = dirname(execPath)
+  const paths = new Set([join(bin, "srt"), join(bin, "komainu"), join(bin, "komainu-update")])
+  if (srt) {
+    paths.add(srt)
+    try { paths.add(realpathSync(srt)) } catch {}
+    // install.sh's wrapper runs the package's cli.js on Bun; protect the whole package it points at.
+    try {
+      const m = /exec "[^"]*" --bun "([^"]+)"/.exec(readFileSync(srt, "utf8").slice(0, 4096))
+      if (m?.[1]) paths.add(dirname(dirname(m[1])) + "/")
+    } catch {}
+  }
+  return [...paths]
 }
 
 export function buildSrtSettings(cfg: SandboxConfig) {
