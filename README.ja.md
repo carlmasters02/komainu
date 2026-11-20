@@ -131,7 +131,7 @@ Komainu のコマンド名は OpenCode の組み込みコマンドと重なら�
 
 **Linux**、**macOS**、**Windows**（Windows 上で Linux を動かす WSL を使います）で動作します。すべての手順はターミナルにコピー＆ペーストするコマンドなので、Linux の知識は不要です。所要時間は約 10 分です。
 
-### ステップ 0（Windows のみ）：WSL をセットアップ
+### <img src="docs/assets/os/windows.svg" height="20" alt="Windows logo"> ステップ 0（Windows のみ）：WSL をセットアップ
 1. **スタート**をクリックして **PowerShell** と入力し、右クリックして**管理者として実行**を選びます。
 2. 次を貼り付けて Enter を押します：
    ```powershell
@@ -145,21 +145,21 @@ Komainu のコマンド名は OpenCode の組み込みコマンドと重なら�
 ### ステップ 1：Komainu に必要なツールをインストール
 自分のシステムのブロックだけコピーしてください。git、サンドボックスの補助ツール、任意の画像ツール 2 つ（Image guard が画像内の文字を読めるようになります）、Komainu が動く JavaScript ランタイムの [Bun](https://bun.sh) をインストールします。Node.js は不要です。
 
-**Ubuntu / Debian / WSL**（`sudo` はパスワードを求めます）：
+<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Ubuntu / Debian / WSL**（`sudo` はパスワードを求めます）：
 ```bash
 sudo apt update && sudo apt install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
 curl -fsSL https://bun.sh/install | bash
 exec bash
 ```
 
-**Fedora：**
+<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Fedora：**
 ```bash
 sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
 curl -fsSL https://bun.sh/install | bash
 exec bash
 ```
 
-**macOS：** `brew --version` が「command not found」と表示する場合は、先に [Homebrew](https://brew.sh) をインストールし、最後に表示される「Next steps」の行を実行してください：
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/os/apple-dark.svg"><img src="docs/assets/os/apple.svg" height="18" alt="Apple logo"></picture> **macOS：** `brew --version` が「command not found」と表示する場合は、先に [Homebrew](https://brew.sh) をインストールし、最後に表示される「Next steps」の行を実行してください：
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```

@@ -130,7 +130,7 @@ Komainu's command names avoid OpenCode's built-ins (`/effort` is OpenCode's shor
 
 Works on **Linux**, **macOS** and **Windows** (through WSL, which runs Linux inside Windows). Every step is a command you copy and paste into a terminal; you don't need to know Linux. It takes about 10 minutes.
 
-### Step 0 (Windows only): set up WSL
+### <img src="docs/assets/os/windows.svg" height="20" alt="Windows logo"> Step 0 (Windows only): set up WSL
 1. Click **Start**, type **PowerShell**, right-click it and choose **Run as administrator**.
 2. Paste this and press Enter:
    ```powershell
@@ -144,21 +144,21 @@ From now on, run every command in that **Ubuntu** window and follow the **Ubuntu
 ### Step 1: install the tools Komainu needs
 Copy only the block for your system. It installs git, the sandbox's helpers, two optional image tools (they let Image guard read text inside images) and [Bun](https://bun.sh), the JavaScript runtime Komainu runs on. You don't need Node.js.
 
-**Ubuntu / Debian / WSL** (`sudo` asks for your password):
+<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Ubuntu / Debian / WSL** (`sudo` asks for your password):
 ```bash
 sudo apt update && sudo apt install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
 curl -fsSL https://bun.sh/install | bash
 exec bash
 ```
 
-**Fedora:**
+<img src="docs/assets/os/linux.svg" height="18" alt="Linux logo"> **Fedora:**
 ```bash
 sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
 curl -fsSL https://bun.sh/install | bash
 exec bash
 ```
 
-**macOS:** if `brew --version` says "command not found", install [Homebrew](https://brew.sh) first, and run the "Next steps" lines it prints at the end:
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/os/apple-dark.svg"><img src="docs/assets/os/apple.svg" height="18" alt="Apple logo"></picture> **macOS:** if `brew --version` says "command not found", install [Homebrew](https://brew.sh) first, and run the "Next steps" lines it prints at the end:
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
