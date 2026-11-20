@@ -31,17 +31,32 @@ chmod 755 "$BIN/komainu-update"
 # Node.js isn't a requirement.
 if ! { command -v srt >/dev/null && srt -c true >/dev/null 2>&1; }; then
   echo "→ setting up the sandbox tool (srt)"
-  bun add -g @anthropic-ai/sandbox-runtime >/dev/null 2>&1 || true
-  SRT_CLI="${BUN_INSTALL:-$HOME/.bun}/install/global/node_modules/@anthropic-ai/sandbox-runtime/dist/cli.js"
+  # Installed into Komainu's own folder (not Bun's global one, whose `srt` link needs Node.js).
+  SRT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/komainu/sandbox-runtime"
+  mkdir -p "$SRT_DIR"
+  [ -f "$SRT_DIR/package.json" ] || echo '{ "private": true }' > "$SRT_DIR/package.json"
+  (cd "$SRT_DIR" && bun add @anthropic-ai/sandbox-runtime >/dev/null 2>&1) || true
+  SRT_CLI="$SRT_DIR/node_modules/@anthropic-ai/sandbox-runtime/dist/cli.js"
   if [ -f "$SRT_CLI" ]; then
     printf '#!/bin/sh\n# Installed by Komainu (fork/install.sh): runs the sandbox tool on Bun, so Node.js is not needed.\nexec "%s" --bun "%s" "$@"\n' "$(command -v bun)" "$SRT_CLI" > "$BIN/srt"
     chmod 755 "$BIN/srt"
+    # Earlier Komainu versions used `bun add -g`, which left a Node-only `srt` link in Bun's folder. Remove it
+    # only when it is that link and it doesn't run.
+    OLD="${BUN_INSTALL:-$HOME/.bun}/bin/srt"
+    case "$(readlink "$OLD" 2>/dev/null || true)" in
+      *install/global/node_modules/@anthropic-ai/sandbox-runtime/*) STALE=1 ;;
+      *) STALE= ;;
+    esac
+    if [ -n "$STALE" ] && ! "$OLD" -c true >/dev/null 2>&1; then
+      bun remove -g @anthropic-ai/sandbox-runtime >/dev/null 2>&1 || true
+      rm -f "$OLD"; hash -r
+    fi
   fi
   if PATH="$BIN:$PATH" srt -c true >/dev/null 2>&1; then
     echo "  ✓ sandbox ready"
     FOUND="$(command -v srt || true)"
     if [ -n "$FOUND" ] && [ "$FOUND" != "$BIN/srt" ]; then
-      echo "! an older srt at $FOUND comes first on your PATH and doesn't work; remove it: npm rm -g @anthropic-ai/sandbox-runtime"
+      echo "! another srt at $FOUND comes first on your PATH and doesn't work. Remove it (if it came from npm: npm rm -g @anthropic-ai/sandbox-runtime) so the one in $BIN is used."
     fi
   else
     echo "! the sandbox isn't working yet. On Linux, install bubblewrap, socat and ripgrep (see the README), then run fork/install.sh again."
