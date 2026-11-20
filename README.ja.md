@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/1d10ee87-b692-4012-8c60-824901aaf1bf
 
 | 層 | 内容 |
 |---|---|
-| **1. 隔離** | すべてのシェルコマンドを OS のサンドボックス（[`srt`](https://github.com/anthropic-experimental/sandbox-runtime)：Linux では bubblewrap、macOS では Seatbelt）内で実行します。認証情報ファイル（`.env`、SSH キーやクラウドの鍵）は読めず、書き込みはプロジェクト内に限られ、Komainu 自身の設定は読み取り専用、ネットワークはドメインの許可リストを通ります。 |
+| **1. 隔離** | すべてのシェルコマンドを OS のサンドボックス（[`srt`](https://github.com/anthropics/sandbox-runtime)：Linux では bubblewrap、macOS では Seatbelt）内で実行します。認証情報ファイル（`.env`、SSH キーやクラウドの鍵）は読めず、書き込みはプロジェクト内に限られ、Komainu 自身の設定は読み取り専用、ネットワークはドメインの許可リストを通ります。 |
 | **2. 予防** | シェルコマンド（書き込み先のファイルを含む）、ファイルアクセス、URL（OpenCode の Code Mode 内の `fetch()` を含む）を実行前にすべてチェックします。致命的な操作（`rm -rf ~`、`curl … \| sh`、秘密情報のネットワーク送信、クラウドメタデータへのアクセス）は**ブロック**し、リスクのある操作（force-push、`npm publish`、`sudo`、ガードレールや git フックの編集）は**事前に確認**します。 |
 | **3. 汚染追跡** | 信頼できない内容（Web ページ、検索結果、MCP の出力）がセッションに入った後は、ネットワーク通信、インストール、push、サードパーティのツール呼び出しにあなたの承認が必要になります。信頼できないテキストは囲い込まれ、プロンプトインジェクションのパターンがないか検査されます。 |
 | **4. 秘匿化** | API キー、トークン、秘密鍵、URL 内の認証情報を、モデル（やプロバイダー）に届く前にツール出力から取り除きます。 |
@@ -167,8 +167,8 @@ fork/install.sh
 set -eo pipefail
 command -v brew >/dev/null || [ -x /opt/homebrew/bin/brew ] || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
-grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
 brew install git tesseract imagemagick
+grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
 [ -x ~/.bun/bin/bun ] || curl -fsSL https://bun.sh/install | bash
 export PATH="$HOME/.bun/bin:$PATH"
 [ -d ~/tools/komainu ] || git clone https://github.com/carlmasters02/komainu ~/tools/komainu
@@ -185,9 +185,10 @@ fork/install.sh
 ### 起動
 新しいコマンドを使えるよう、**新しい**ターミナルを開いてから：
 ```bash
-mkdir -p ~/my-project && cd ~/my-project     # または、コードのある任意のフォルダに cd
+mkdir -p ~/my-project && cd ~/my-project
 komainu
 ```
+`~/my-project` の代わりに、コードのある任意のフォルダを使えます。
 `/models` と入力して AI モデルを選びます。名前に **Free** が付いたモデルはアカウントなしで使えます。自分のアカウント（Claude、ChatGPT、GitHub Copilot、API キーなど）を使う場合は、いったん終了して先に `komainu auth login` を実行してください。
 
 **動作確認：** `komainu --version` でバージョンが表示され、`srt -c "echo sandbox ok"` で `sandbox ok` と表示されれば完了です。
@@ -229,8 +230,8 @@ cd ~/tools/komainu && git pull && fork/update.sh && komainu service restart
 ブランディング以外はすべて、通常の OpenCode v2 でも動作します。
 ```bash
 cp presets/opencode.json presets/AGENTS.md your-project/
-# opencode.json の "package" を ~/tools/komainu/packages/opencode-plugin の絶対パスに設定します
 ```
+その後、`opencode.json` の `"package"` を `~/tools/komainu/packages/opencode-plugin` の絶対パスに設定します。
 
 ## よくある質問
 
@@ -282,11 +283,12 @@ MCP サーバーのサンドボックス化、信頼した後に挙動が変わ�
 
 ```bash
 bun install
-bun test           # ユニットテスト、プラグインテスト、（srt と bubblewrap があれば）実際のサンドボックスのテスト
-bun run typecheck  # 実際の @opencode/plugin の型に対してチェック
-bun run bench      # プロンプトインジェクションのベンチマーク
-bun run bench/live/run.ts --model <provider/model>   # 同じ攻撃を実際のモデルで実行
+bun test
+bun run typecheck
+bun run bench
+bun run bench/live/run.ts --model <provider/model>
 ```
+上から順に：依存関係のインストール、ユニットテスト・プラグインテスト・（srt と bubblewrap があれば）実際のサンドボックスのテスト、実際の @opencode/plugin の型に対するチェック、プロンプトインジェクションのベンチマーク、同じ攻撃を実際のモデルで実行。
 
 ```
 packages/core              セキュリティエンジン、画像ガード、セキュリティグラフ、脅威メモリ、Effort Advisor、設定（OpenCode への依存なし）
@@ -304,7 +306,7 @@ docs/                      脅威モデル、ロードマップ、スクリー�
 
 ## クレジット
 
-[OpenCode](https://github.com/anomalyco/opencode)（MIT）と Anthropic の [sandbox-runtime](https://github.com/anthropic-experimental/sandbox-runtime)（Apache-2.0）をベースにしています。いずれのプロジェクトとも提携関係はありません。
+[OpenCode](https://github.com/anomalyco/opencode)（MIT）と Anthropic の [sandbox-runtime](https://github.com/anthropics/sandbox-runtime)（Apache-2.0）をベースにしています。いずれのプロジェクトとも提携関係はありません。
 
 ## ライセンス
 
