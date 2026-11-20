@@ -85,6 +85,8 @@ export default plugin
 function watchUpdateProgress(ctx: Ctx) {
   const file = join(settingsDir(), "update-progress.json")
   let last = ""
+  // Only progress written after this window opened: after a restart, the previous run's "done" isn't news.
+  const opened = Date.now() / 1000
   const timer = setInterval(() => {
     let raw: string
     try { raw = readFileSync(file, "utf8") } catch { return }
@@ -92,7 +94,7 @@ function watchUpdateProgress(ctx: Ctx) {
     last = raw
     try {
       const p = JSON.parse(raw) as { stage: string; message: string; at: number }
-      if (Date.now() / 1000 - p.at > 20) return
+      if (p.at < opened - 1 || Date.now() / 1000 - p.at > 20) return
       const end = p.stage === "done" || p.stage === "failed"
       ctx.ui.toast.show({ variant: p.stage === "failed" ? "error" : end ? "success" : "info", message: `⛩ ${p.message}`, duration: end ? 10_000 : 4_000 })
     } catch {}
