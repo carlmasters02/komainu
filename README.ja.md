@@ -129,44 +129,67 @@ Komainu のコマンド名は OpenCode の組み込みコマンドと重なら�
 
 ## インストール
 
-**Linux** と **macOS** で動作します。Windows では **WSL2** を使い、その中で Ubuntu の手順に従ってください。[Bun](https://bun.sh)、git、[Node.js](https://nodejs.org) 22.12 以降（サンドボックスのツールが Node で動きます）が必要です。
+**Linux**、**macOS**、**Windows**（Windows 上で Linux を動かす WSL を使います）で動作します。すべての手順はターミナルにコピー＆ペーストするコマンドなので、Linux の知識は不要です。所要時間は約 10 分です。
 
-**1. お使いのシステム用にサンドボックスと画像ツールをインストール**（自分のブロックだけコピーしてください）：
+### ステップ 0（Windows のみ）：WSL をセットアップ
+1. **スタート**をクリックして **PowerShell** と入力し、右クリックして**管理者として実行**を選びます。
+2. 次を貼り付けて Enter を押します：
+   ```powershell
+   wsl --install
+   ```
+3. 再起動を求められたら、パソコンを再起動します。
+4. 再起動後、スタートメニューから **Ubuntu** を開きます。初回はユーザー名とパスワードの作成を求められます（パスワードは入力中に表示されませんが、正常です）。
 
-Ubuntu / Debian / WSL2：
+以降のコマンドはすべてこの **Ubuntu** のウィンドウで実行し、下の **Ubuntu** の手順に従ってください。Windows 11、または Windows 10 バージョン 2004 以降が必要です。
+
+### ステップ 1：Komainu に必要なツールをインストール
+自分のシステムのブロックだけコピーしてください。git、サンドボックスの補助ツール、任意の画像ツール 2 つ（Image guard が画像内の文字を読めるようになります）、Komainu が動く JavaScript ランタイムの [Bun](https://bun.sh) をインストールします。Node.js は不要です。
+
+**Ubuntu / Debian / WSL**（`sudo` はパスワードを求めます）：
 ```bash
-sudo apt install bubblewrap socat ripgrep tesseract-ocr imagemagick
-npm i -g @anthropic-ai/sandbox-runtime
+sudo apt update && sudo apt install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
+curl -fsSL https://bun.sh/install | bash
+exec bash
 ```
 
-Fedora：
+**Fedora：**
 ```bash
-sudo dnf install bubblewrap socat ripgrep tesseract ImageMagick
-npm i -g @anthropic-ai/sandbox-runtime
+sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
+curl -fsSL https://bun.sh/install | bash
+exec bash
 ```
 
-macOS（サンドボックスは組み込みの Seatbelt を使うため、追加は不要です）：
+**macOS：** `brew --version` が「command not found」と表示する場合は、先に [Homebrew](https://brew.sh) をインストールし、最後に表示される「Next steps」の行を実行してください：
 ```bash
-brew install tesseract imagemagick
-npm i -g @anthropic-ai/sandbox-runtime
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
+その後：
+```bash
+brew install git tesseract imagemagick
+curl -fsSL https://bun.sh/install | bash
+exec zsh
+```
+（macOS にはサンドボックスが組み込まれています。）
 
-サンドボックスは強く推奨します。既定の設定では、これがないとシェルコマンドを拒否します。`tesseract` と ImageMagick は任意で、Image guard が画像内の文字を読めるようになります。
+`curl … | bash` の行は Bun と Homebrew の公式インストーラーです。`exec bash` / `exec zsh` はターミナルを読み込み直し、新しい `bun` コマンドを使えるようにします。
 
-**2. komainu をビルドしてインストール**（どのシステムでも同じです）：
+### ステップ 2：Komainu をダウンロードしてインストール（どのシステムでも同じです）
 ```bash
 git clone https://github.com/carlmasters02/komainu ~/tools/komainu
 cd ~/tools/komainu
-fork/build.sh            # OpenCode のソース + Komainu のパッチ → fork/dist/komainu（初回は 1〜2 分）
-fork/install.sh          # ~/.local/bin/komainu（と komainu-update）をインストールし、セキュリティ層をグローバルに有効化
+fork/build.sh            # komainu をビルド：OpenCode + Komainu のパッチ（約 1〜2 分）
+fork/install.sh          # komainu、komainu-update、サンドボックスのツールをインストールし、保護を有効化
 ```
-`install.sh` が `~/.local/bin` が PATH にないと表示した場合は、表示された `export PATH=…` の行を実行し（シェルの起動ファイルにも追加して）から次に進んでください。
+`install.sh` が `~/.local/bin` が PATH にないと表示した場合は、表示された行を実行してから続けてください。
 
-**3. ログインして、好きなプロジェクトで起動：**
+### ステップ 3：起動
 ```bash
-komainu auth login       # Komainu のログイン情報は opencode とは別に管理されます
+mkdir -p ~/my-project && cd ~/my-project     # または、コードのある任意のフォルダに cd
+komainu
 ```
-その後、プロジェクトのフォルダに `cd` して `komainu` を実行します。
+`/models` と入力して AI モデルを選びます。名前に **Free** が付いたモデルはアカウントなしで使えます。自分のアカウント（Claude、ChatGPT、GitHub Copilot、API キーなど）を使う場合は、いったん終了して先に `komainu auth login` を実行してください。
+
+**動作確認：** `komainu --version` でバージョンが表示され、`srt -c "echo sandbox ok"` で `sandbox ok` と表示されれば完了です。
 
 **すでに OpenCode を使っている場合：** MCP サーバー、プラグイン、モデル、プロバイダー、カスタムエージェント、コマンド、AGENTS.md を一度に移行できます（元の OpenCode には影響しません）。
 ```bash
@@ -247,7 +270,7 @@ MCP サーバーのサンドボックス化、信頼した後に挙動が変わ�
 
 - **`komainu` が固まる、またはサービスのポートが使用中と表示される：** 通常の OpenCode のバックグラウンドサーバーが同じポートを使っている可能性があります。Komainu 専用のポートを設定してください：`komainu service set port 49375`。
 - **プロジェクトに `.komainu/` フォルダができない：** プラグインが読み込まれていません。`komainu debug config` と `komainu --print-logs --log-level info` を確認してください。
-- **シェルコマンドが拒否される：** サンドボックスがインストールされていません。`srt -c "echo ok"` が動くか確認してください。
+- **シェルコマンドが拒否される：** サンドボックスが動いていません。`fork/install.sh` をもう一度実行し（サンドボックスのツールを設定します）、`srt -c "echo ok"` で `ok` と表示されることを確認してください。Linux では、ステップ 1 の `bubblewrap`、`socat`、`ripgrep` も必要です。
 - **Neo4j に接続できない：** `/komainu → Neo4j → Test connection` でドライバーのエラーを確認できます。Aura の URI は `neo4j+s://` で始まります。新しい Aura インスタンスは起動まで 1 分ほどかかることがあります。接続できない間も、Komainu は通常どおり動作し、ローカルで脅威を記憶し続けます。
 - **Image guard が「画像内の文字はチェックされていません」と表示する：** `tesseract`（と ImageMagick）をインストールし、サンドボックスが動くこと（`srt -c "echo ok"`）を確認してください。
 - **「Plugin failed to load」「Cannot find package」と表示される：** プラグインの依存関係が入っていません。`cd ~/tools/komainu && bun install && komainu service restart` を実行してください。

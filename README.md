@@ -128,44 +128,67 @@ Komainu's command names avoid OpenCode's built-ins (`/effort` is OpenCode's shor
 
 ## Install
 
-Works on **Linux** and **macOS**; on Windows, use **WSL2** and follow the Ubuntu steps inside it. You need [Bun](https://bun.sh), git and [Node.js](https://nodejs.org) 22.12 or newer (the sandbox tool runs on Node).
+Works on **Linux**, **macOS** and **Windows** (through WSL, which runs Linux inside Windows). Every step is a command you copy and paste into a terminal; you don't need to know Linux. It takes about 10 minutes.
 
-**1. Install the sandbox and image tools for your system** (copy only your block):
+### Step 0 (Windows only): set up WSL
+1. Click **Start**, type **PowerShell**, right-click it and choose **Run as administrator**.
+2. Paste this and press Enter:
+   ```powershell
+   wsl --install
+   ```
+3. Restart your computer when it asks.
+4. After the restart, open **Ubuntu** from the Start menu. The first time, it asks you to create a username and password. (The password stays invisible while you type. That's normal.)
 
-Ubuntu / Debian / WSL2:
+From now on, run every command in that **Ubuntu** window and follow the **Ubuntu** steps below. This needs Windows 11, or Windows 10 version 2004 or newer.
+
+### Step 1: install the tools Komainu needs
+Copy only the block for your system. It installs git, the sandbox's helpers, two optional image tools (they let Image guard read text inside images) and [Bun](https://bun.sh), the JavaScript runtime Komainu runs on. You don't need Node.js.
+
+**Ubuntu / Debian / WSL** (`sudo` asks for your password):
 ```bash
-sudo apt install bubblewrap socat ripgrep tesseract-ocr imagemagick
-npm i -g @anthropic-ai/sandbox-runtime
+sudo apt update && sudo apt install -y git curl unzip bubblewrap socat ripgrep tesseract-ocr imagemagick
+curl -fsSL https://bun.sh/install | bash
+exec bash
 ```
 
-Fedora:
+**Fedora:**
 ```bash
-sudo dnf install bubblewrap socat ripgrep tesseract ImageMagick
-npm i -g @anthropic-ai/sandbox-runtime
+sudo dnf install -y git curl unzip bubblewrap socat ripgrep tesseract ImageMagick
+curl -fsSL https://bun.sh/install | bash
+exec bash
 ```
 
-macOS (the sandbox uses the built-in Seatbelt, so it needs nothing extra):
+**macOS:** if `brew --version` says "command not found", install [Homebrew](https://brew.sh) first, and run the "Next steps" lines it prints at the end:
 ```bash
-brew install tesseract imagemagick
-npm i -g @anthropic-ai/sandbox-runtime
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
+Then:
+```bash
+brew install git tesseract imagemagick
+curl -fsSL https://bun.sh/install | bash
+exec zsh
+```
+(macOS has its sandbox built in.)
 
-The sandbox is strongly recommended: the default config refuses shell commands without it. `tesseract` and ImageMagick are optional; they let Image guard read text inside images.
+The `curl … | bash` lines are the official Bun and Homebrew installers. `exec bash` / `exec zsh` reloads the terminal so it finds the new `bun` command.
 
-**2. Build and install komainu** (the same on every system):
+### Step 2: download and install Komainu (the same on every system)
 ```bash
 git clone https://github.com/carlmasters02/komainu ~/tools/komainu
 cd ~/tools/komainu
-fork/build.sh            # OpenCode source + Komainu's patches → fork/dist/komainu (first run ~1–2 min)
-fork/install.sh          # installs ~/.local/bin/komainu (+ komainu-update) and turns the security layers on globally
+fork/build.sh            # builds komainu: OpenCode + Komainu's patches (about 1–2 minutes)
+fork/install.sh          # installs komainu, komainu-update and the sandbox tool, and turns the protections on
 ```
-If `install.sh` says `~/.local/bin` isn't on your PATH, run the `export PATH=…` line it prints (and add it to your shell's startup file) before going on.
+If `install.sh` says `~/.local/bin` isn't on your PATH, run the line it prints, then carry on.
 
-**3. Sign in, then start it in any project:**
+### Step 3: start it
 ```bash
-komainu auth login       # Komainu keeps its own logins, separate from opencode
+mkdir -p ~/my-project && cd ~/my-project     # or cd into any folder with your code
+komainu
 ```
-Then `cd` into a project folder and run `komainu`.
+Type `/models` to choose an AI model. Models with **Free** in the name work without an account. To use your own account instead (Claude, ChatGPT, GitHub Copilot, an API key…), quit and run `komainu auth login` first.
+
+**Check that everything works:** `komainu --version` shows the version, and `srt -c "echo sandbox ok"` prints `sandbox ok`.
 
 **Already use OpenCode?** Bring over your MCP servers, plugins, model, providers, custom agents, commands and AGENTS.md in one step (your stock OpenCode stays untouched):
 ```bash
@@ -246,7 +269,7 @@ Komainu are the guardian lion-dogs at Japanese shrine gates. Nothing passes with
 
 - **`komainu` hangs or says the service port is in use:** stock OpenCode's background server may be using the same port. Give Komainu its own: `komainu service set port 49375`.
 - **No `.komainu/` folder appears in your project:** the plugin didn't load. Check `komainu debug config` and `komainu --print-logs --log-level info`.
-- **Shell commands are refused:** the sandbox isn't installed. Check that `srt -c "echo ok"` works.
+- **Shell commands are refused:** the sandbox isn't working. Run `fork/install.sh` again (it sets the sandbox tool up), and make sure `srt -c "echo ok"` prints `ok`. On Linux, the sandbox also needs `bubblewrap`, `socat` and `ripgrep` from Step 1.
 - **Neo4j won't connect:** `/komainu → Neo4j → Test connection` shows the driver's error. Aura URIs start with `neo4j+s://`; a new Aura instance can take a minute to come up. Komainu keeps working (and remembering locally) while it's unreachable.
 - **Image guard says text in images isn't checked:** install `tesseract` (and ImageMagick), and make sure the sandbox works (`srt -c "echo ok"`).
 - **"Plugin failed to load" / "Cannot find package":** the plugin's dependencies are missing. Run `cd ~/tools/komainu && bun install && komainu service restart`.
