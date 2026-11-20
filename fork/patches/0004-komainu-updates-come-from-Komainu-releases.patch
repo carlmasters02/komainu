@@ -1,13 +1,36 @@
-From cca986da1883186da42b298fa509e560f2a4cb37 Mon Sep 17 00:00:00 2001
+From 35838baaa6c2e06961f570cc8753b4872585ab03 Mon Sep 17 00:00:00 2001
 From: carlmasters02 <169651373+carlmasters02@users.noreply.github.com>
 Date: Wed, 18 Nov 2026 12:11:15 +0000
 Subject: [PATCH] komainu: updates come from Komainu releases
 
-The updater gains a "komainu" install method, picked whenever the komainu-update script sits next to the binary. /update and the startup update notice then check Komainu's GitHub releases (one is published for every OpenCode release) and install through komainu-update, instead of looking for an OpenCode install and offering plain OpenCode.
+The updater gains a "komainu" install method, picked whenever the komainu-update script sits next to the binary. /update and the startup update notice then check Komainu's GitHub releases (one is published for every OpenCode release) and install through komainu-update, instead of looking for an OpenCode install and offering plain OpenCode. The update dialog and `komainu upgrade` talk about Komainu, and say which OpenCode version it is built on.
 ---
- packages/cli/src/services/updater.ts | 66 ++++++++++++++++++++++++++--
- 1 file changed, 62 insertions(+), 4 deletions(-)
+ packages/cli/src/commands/handlers/upgrade.ts |  4 +-
+ packages/cli/src/services/updater.ts          | 66 +++++++++++++++++--
+ packages/tui/src/component/dialog-update.tsx  | 14 ++--
+ 3 files changed, 73 insertions(+), 11 deletions(-)
 
+diff --git a/packages/cli/src/commands/handlers/upgrade.ts b/packages/cli/src/commands/handlers/upgrade.ts
+index b29b593..441f2e7 100644
+--- a/packages/cli/src/commands/handlers/upgrade.ts
++++ b/packages/cli/src/commands/handlers/upgrade.ts
+@@ -17,14 +17,14 @@ export default Runtime.handler(
+       if (!method)
+         return yield* Effect.fail(
+           (yield* updater.managed(Option.getOrUndefined(input.target))) ??
+-            new Error("Could not detect the installation method. Pass --method to choose how to upgrade OpenCode."),
++            new Error("Could not detect the installation method. Run komainu-update, or reinstall with fork/install.sh in your Komainu folder."),
+         )
+ 
+       log.info(`Using method: ${method}`)
+       const target = Option.getOrUndefined(input.target) ?? (yield* updater.latest(method))
+       const version = target.trim().replace(/^v/, "")
+       if (version === OPENCODE_VERSION) {
+-        log.warn(`OpenCode upgrade skipped: ${version} is already installed`)
++        log.warn(`Komainu is already up to date: ${version}, built on OpenCode ${version.replace(/-komainu.*$/, "")}`)
+         outro("Done")
+         return
+       }
 diff --git a/packages/cli/src/services/updater.ts b/packages/cli/src/services/updater.ts
 index 0c38bab..2566e9c 100644
 --- a/packages/cli/src/services/updater.ts
@@ -137,6 +160,63 @@ index 0c38bab..2566e9c 100644
        // Keep the old package: uninstalling it can unlink the replacement command.
        npm: [
          npm,
+diff --git a/packages/tui/src/component/dialog-update.tsx b/packages/tui/src/component/dialog-update.tsx
+index bd4a56c..5c5dcd0 100644
+--- a/packages/tui/src/component/dialog-update.tsx
++++ b/packages/tui/src/component/dialog-update.tsx
+@@ -1,6 +1,7 @@
+ import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
+ import { Keymap } from "../context/keymap"
+ import { useTheme } from "../context/theme"
++import { useTuiApp } from "../context/runtime"
+ import type { UpdateState } from "../context/update-notification"
+ import { DialogButtons, DialogHeader, DialogLayout, useDialog } from "../ui/dialog"
+ import { errorMessage } from "../util/error"
+@@ -15,6 +16,7 @@ export function DialogUpdate(props: {
+ }) {
+   const dialog = useDialog()
+   const theme = useTheme().surface("dialog")
++  const app = useTuiApp()
+   const [error, setError] = createSignal<string>()
+   const [active, setActive] = createSignal(0)
+   const controller = new AbortController()
+@@ -85,7 +87,7 @@ export function DialogUpdate(props: {
+         <DialogHeader
+           title={
+             state().type === "installing"
+-              ? "Updating OpenCode"
++              ? "Updating Komainu"
+               : state().type === "available" || state().type === "failed"
+                 ? "Update available"
+                 : "Update"
+@@ -110,21 +112,23 @@ export function DialogUpdate(props: {
+             </Match>
+             <Match when={current.type === "available"}>
+               <text fg={theme.text.muted}>
+-                An update is available. After installing, you'll be prompted to restart OpenCode.
++                An update is available for Komainu and the OpenCode it's built on. After installing, you'll be prompted to restart Komainu.
+               </text>
+             </Match>
+             <Match when={current.type === "installing"}>
+               <Spinner shimmer={theme.text.base}>
+-                {current.type === "installing" ? `Installing OpenCode ${current.version}…` : ""}
++                {current.type === "installing" ? `Installing Komainu ${current.version}…` : ""}
+               </Spinner>
+             </Match>
+             <Match when={current.type === "installed"}>
+               <text fg={theme.text.muted} wrapMode="word">
+-                Update successful! Restart closes OpenCode, then run opencode to use the new version.
++                Update successful! Restart closes Komainu, then run komainu to use the new version.
+               </text>
+             </Match>
+             <Match when={current.type === "current"}>
+-              <text fg={theme.text.muted}>OpenCode is already up to date.</text>
++              <text fg={theme.text.muted} wrapMode="word">
++                Komainu is up to date: {app.version}, built on OpenCode {app.version.replace(/-komainu.*$/, "")}.
++              </text>
+             </Match>
+             <Match when={current.type === "unavailable"}>
+               <text fg={theme.text.muted} wrapMode="word">
 -- 
 2.43.0
 

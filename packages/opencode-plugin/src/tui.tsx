@@ -478,16 +478,26 @@ async function sponsorWelcome(ctx: Ctx, settings: () => KomainuSettings, update:
 
 async function sponsorsMenu(ctx: Ctx, settings: () => KomainuSettings, update: Update) {
   const enabled = settings().sponsors?.enabled !== false
-  type Action = "aiand" | "toggle"
+  type Action = "aiand" | "message" | "toggle"
   const choice = await ctx.ui.dialog.select<Action>({
     title: "Sponsors",
     placeholder: "Komainu is free and works with any provider; sponsors are optional",
     options: [
       { title: "ai& — inference on GPUs in Japan", value: "aiand", description: "open models (Kimi, DeepSeek), OpenAI-compatible API · connect" },
+        { title: "See ai&'s message", value: "message", description: "show the sponsor note again" },
       { title: enabled ? "Turn sponsor messages off" : "Turn sponsor messages on", value: "toggle" },
     ],
   })
   if (choice === "aiand") return connectAiand(ctx, update)
+    if (choice === "message") {
+      const yes = await ctx.ui.dialog.confirm({
+        title: AIAND.title,
+        message: AIAND.message,
+        label: { confirm: "Connect", cancel: "Close" },
+      })
+      if (yes) return connectAiand(ctx, update)
+      return
+    }
   if (choice === "toggle") {
     update((s) => ({ ...s, sponsors: { ...s.sponsors, enabled: !enabled } }))
     ctx.ui.toast.show({ variant: "success", message: `Sponsor messages ${enabled ? "off" : "on"}` })
