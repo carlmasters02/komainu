@@ -129,30 +129,44 @@ Komainu のコマンド名は OpenCode の組み込みコマンドと重なら�
 
 ## インストール
 
-**Linux** と **macOS** で動作します。Windows では **WSL2** を使ってください。[Bun](https://bun.sh) と git が必要です。
+**Linux** と **macOS** で動作します。Windows では **WSL2** を使い、その中で Ubuntu の手順に従ってください。[Bun](https://bun.sh)、git、[Node.js](https://nodejs.org) 22.12 以降（サンドボックスのツールが Node で動きます）が必要です。
 
+**1. お使いのシステム用にサンドボックスと画像ツールをインストール**（自分のブロックだけコピーしてください）：
+
+Ubuntu / Debian / WSL2：
 ```bash
-# 1. サンドボックス（強く推奨。既定の設定では、これがないとシェルコマンドを拒否します）
+sudo apt install bubblewrap socat ripgrep tesseract-ocr imagemagick
 npm i -g @anthropic-ai/sandbox-runtime
-sudo apt install bubblewrap socat ripgrep        # Debian/Ubuntu
-sudo dnf install bubblewrap socat ripgrep        # Fedora
-#   macOS：追加のインストールは不要です（組み込みの Seatbelt を使います）
+```
 
-# 任意：Image guard が画像内の文字を読めるようにします
-sudo apt install tesseract-ocr imagemagick       # Debian/Ubuntu
-sudo dnf install tesseract ImageMagick           # Fedora
-brew install tesseract imagemagick               # macOS
+Fedora：
+```bash
+sudo dnf install bubblewrap socat ripgrep tesseract ImageMagick
+npm i -g @anthropic-ai/sandbox-runtime
+```
 
-# 2. komainu コマンドをビルドしてインストール
+macOS（サンドボックスは組み込みの Seatbelt を使うため、追加は不要です）：
+```bash
+brew install tesseract imagemagick
+npm i -g @anthropic-ai/sandbox-runtime
+```
+
+サンドボックスは強く推奨します。既定の設定では、これがないとシェルコマンドを拒否します。`tesseract` と ImageMagick は任意で、Image guard が画像内の文字を読めるようになります。
+
+**2. komainu をビルドしてインストール**（どのシステムでも同じです）：
+```bash
 git clone https://github.com/carlmasters02/komainu ~/tools/komainu
 cd ~/tools/komainu
 fork/build.sh            # OpenCode のソース + Komainu のパッチ → fork/dist/komainu（初回は 1〜2 分）
 fork/install.sh          # ~/.local/bin/komainu（と komainu-update）をインストールし、セキュリティ層をグローバルに有効化
-
-# 3. 初回起動
-komainu auth login       # Komainu のログイン情報は opencode とは別に管理されます
-cd your-project && komainu
 ```
+`install.sh` が `~/.local/bin` が PATH にないと表示した場合は、表示された `export PATH=…` の行を実行し（シェルの起動ファイルにも追加して）から次に進んでください。
+
+**3. ログインして、好きなプロジェクトで起動：**
+```bash
+komainu auth login       # Komainu のログイン情報は opencode とは別に管理されます
+```
+その後、プロジェクトのフォルダに `cd` して `komainu` を実行します。
 
 **すでに OpenCode を使っている場合：** MCP サーバー、プラグイン、モデル、プロバイダー、カスタムエージェント、コマンド、AGENTS.md を一度に移行できます（元の OpenCode には影響しません）。
 ```bash

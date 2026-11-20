@@ -128,30 +128,44 @@ Komainu's command names avoid OpenCode's built-ins (`/effort` is OpenCode's shor
 
 ## Install
 
-Works on **Linux** and **macOS**; on Windows, use **WSL2**. You need [Bun](https://bun.sh) and git.
+Works on **Linux** and **macOS**; on Windows, use **WSL2** and follow the Ubuntu steps inside it. You need [Bun](https://bun.sh), git and [Node.js](https://nodejs.org) 22.12 or newer (the sandbox tool runs on Node).
 
+**1. Install the sandbox and image tools for your system** (copy only your block):
+
+Ubuntu / Debian / WSL2:
 ```bash
-# 1. sandbox (strongly recommended; the default config refuses shell commands without it)
+sudo apt install bubblewrap socat ripgrep tesseract-ocr imagemagick
 npm i -g @anthropic-ai/sandbox-runtime
-sudo apt install bubblewrap socat ripgrep        # Debian/Ubuntu
-sudo dnf install bubblewrap socat ripgrep        # Fedora
-#   macOS: nothing extra (uses the built-in Seatbelt)
+```
 
-# optional: lets Image guard read text inside images
-sudo apt install tesseract-ocr imagemagick       # Debian/Ubuntu
-sudo dnf install tesseract ImageMagick           # Fedora
-brew install tesseract imagemagick               # macOS
+Fedora:
+```bash
+sudo dnf install bubblewrap socat ripgrep tesseract ImageMagick
+npm i -g @anthropic-ai/sandbox-runtime
+```
 
-# 2. build and install the komainu command
+macOS (the sandbox uses the built-in Seatbelt, so it needs nothing extra):
+```bash
+brew install tesseract imagemagick
+npm i -g @anthropic-ai/sandbox-runtime
+```
+
+The sandbox is strongly recommended: the default config refuses shell commands without it. `tesseract` and ImageMagick are optional; they let Image guard read text inside images.
+
+**2. Build and install komainu** (the same on every system):
+```bash
 git clone https://github.com/carlmasters02/komainu ~/tools/komainu
 cd ~/tools/komainu
 fork/build.sh            # OpenCode source + Komainu's patches → fork/dist/komainu (first run ~1–2 min)
 fork/install.sh          # installs ~/.local/bin/komainu (+ komainu-update) and turns the security layers on globally
-
-# 3. first run
-komainu auth login       # Komainu keeps its own logins, separate from opencode
-cd your-project && komainu
 ```
+If `install.sh` says `~/.local/bin` isn't on your PATH, run the `export PATH=…` line it prints (and add it to your shell's startup file) before going on.
+
+**3. Sign in, then start it in any project:**
+```bash
+komainu auth login       # Komainu keeps its own logins, separate from opencode
+```
+Then `cd` into a project folder and run `komainu`.
 
 **Already use OpenCode?** Bring over your MCP servers, plugins, model, providers, custom agents, commands and AGENTS.md in one step (your stock OpenCode stays untouched):
 ```bash

@@ -50,6 +50,15 @@ fi
 
 case ":$PATH:" in
   *":$BIN:"*) ;;
-  *) echo "! $BIN is not on your PATH. Add this to ~/.bashrc:  export PATH=\"$BIN:\$PATH\"" ;;
+  *)
+    case "${SHELL:-}" in
+      */zsh) RC="~/.zshrc" ;;
+      */fish) RC="~/.config/fish/config.fish" ;;
+      *) RC="~/.bashrc" ;;
+    esac
+    if [ "$RC" = "~/.config/fish/config.fish" ]; then LINE="fish_add_path $BIN"; else LINE="export PATH=\"$BIN:\$PATH\""; fi
+    echo "! $BIN is not on your PATH. Run this now, and add it to $RC:"
+    echo "    $LINE"
+    ;;
 esac
 echo "✓ done. First run: komainu auth login   (Komainu keeps its own logins, separate from opencode)"
