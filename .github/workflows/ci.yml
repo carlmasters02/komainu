@@ -14,3 +14,10 @@ jobs:
       - run: bun run typecheck
       - run: bun test
       - run: bun run bench/injection/run.ts --ci
+      # Beginners without Node.js get srt run on Bun (fork/install.sh); make sure the real sandbox tests pass that way too.
+      - name: sandbox tests with srt on Bun
+        run: |
+          mkdir -p "$RUNNER_TEMP/srt-bun"
+          printf '#!/bin/sh\nexec "%s" --bun "%s" "$@"\n' "$(command -v bun)" "$(readlink -f "$(command -v srt)")" > "$RUNNER_TEMP/srt-bun/srt"
+          chmod 755 "$RUNNER_TEMP/srt-bun/srt"
+          PATH="$RUNNER_TEMP/srt-bun:$PATH" bun test sandbox

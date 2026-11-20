@@ -173,7 +173,7 @@ export function createKomainu(options: KomainuOptions = {}) {
           case "shell": {
             const command = str(input.command) ?? ""
             if (sandboxMode === "required" && !srt)
-              throw new Error("[komainu] Shell is disabled: sandbox is required but `srt` is not installed (npm i -g @anthropic-ai/sandbox-runtime).")
+              throw new Error("[komainu] Shell is disabled: sandbox is required but `srt` was not found. Run fork/install.sh in your Komainu folder (it sets the sandbox up), then check `srt -c \"echo ok\"`.")
             const decision = await withRecall(decideShell(command, policy, tctx), rememberableHosts(command).map((h) => `domain:${h}`), e.tool, e.sessionID, command)
             return enforce(e, decision, [command])
           }

@@ -2,10 +2,12 @@
  * OS-level isolation via Anthropic's open-source sandbox-runtime (`srt`, Apache-2.0):
  * bubblewrap on Linux, Seatbelt on macOS, network forced through a filtering proxy.
  * This is the actual security boundary; everything else in Komainu is defence in depth.
- *   npm i -g @anthropic-ai/sandbox-runtime   (Linux also needs: bubblewrap socat ripgrep)
+ * fork/install.sh sets srt up (installed with Bun and run on Bun when Node.js is missing or too old);
+ * Linux also needs bubblewrap, socat and ripgrep.
  */
-import { mkdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { dirname, join } from "node:path"
 import { SENSITIVE_DENY_READ_GLOBS } from "./secrets.js"
 
 export interface SandboxConfig {
@@ -33,8 +35,17 @@ export const DEFAULT_DENY_WRITE = [
   "~/.config/opencode", "~/.config/komainu", "~/.local/state/komainu", "~/.bashrc", "~/.zshrc", "~/.profile", "~/.bash_profile",
 ]
 
-export function srtBinary(): string | undefined {
-  return Bun.which("srt") ?? undefined
+/**
+ * Finds srt. install.sh puts its own srt next to the komainu binary only when the one on PATH is missing or
+ * broken, so that copy comes first; then PATH; then ~/.local/bin, for when that folder isn't on PATH yet.
+ */
+export function srtBinary(execPath = process.execPath, home = homedir()): string | undefined {
+  const besideKomainu = join(dirname(execPath), "srt")
+  if (existsSync(besideKomainu)) return besideKomainu
+  const onPath = Bun.which("srt")
+  if (onPath) return onPath
+  const local = join(home, ".local", "bin", "srt")
+  return existsSync(local) ? local : undefined
 }
 
 export function buildSrtSettings(cfg: SandboxConfig) {
