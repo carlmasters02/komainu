@@ -21,6 +21,14 @@ export interface Check { readonly area: string; readonly name: string; readonly 
 export interface SelfTestReport { readonly checks: Check[]; readonly path: string; readonly markdown: string; readonly counts: Record<Status, number> }
 
 const REPO = resolve(import.meta.dir, "../../..")
+
+/** Ubuntu 24.04+ restricts unprivileged user namespaces by default, which the Linux sandbox needs. */
+export const USERNS_FIX = [
+  "Ubuntu 24.04 and newer restrict user namespaces, which the sandbox needs. To allow them (the fix sandbox-runtime documents), run:",
+  "  echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/60-komainu-userns.conf && sudo sysctl --system",
+  "This turns off an Ubuntu hardening setting for all programs. Then run /testkomainu again.",
+].join("\n")
+export const isUsernsRestricted = (out: string) => /userns|setgroups|CAP_SYS_ADMIN|uid_map|user namespace/i.test(out)
 const HOME = homedir()
 const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ")
 const tilde = (s: string) => (HOME ? s.split(HOME).join("~") : s)
@@ -123,7 +131,9 @@ export async function runSelfTest(onProgress: (step: string) => void = () => {})
 
       const basic = await sh("echo komainu-sandbox-ok")
       const works = basic.code === 0 && basic.out.includes("komainu-sandbox-ok")
-      add("Sandbox", "runs commands", works ? "pass" : "fail", works ? "a command ran inside the sandbox" : `the sandbox couldn't run a command: ${basic.out.slice(0, 300)}`)
+      add("Sandbox", "runs commands", works ? "pass" : "fail", works ? "a command ran inside the sandbox"
+        : isUsernsRestricted(basic.out) ? `the sandbox can't start, so shell commands will be refused. ${USERNS_FIX}`
+        : `the sandbox couldn't run a command: ${basic.out.slice(0, 300)}`)
       if (works) {
         const inside = await sh("echo ok > note.txt && cat note.txt")
         add("Sandbox", "can write in the project", inside.code === 0 ? "pass" : "fail", inside.code === 0 ? "writing inside the project works" : `writing inside the project failed: ${inside.out.slice(0, 200)}`)

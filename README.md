@@ -273,6 +273,11 @@ Start with `/testkomainu` (or `bun run selftest` in `~/tools/komainu`): it names
 
 - **`komainu` hangs or says the service port is in use:** stock OpenCode's background server may be using the same port. Give Komainu its own: `komainu service set port 49375`.
 - **No `.komainu/` folder appears in your project:** the plugin didn't load. Check `komainu debug config` and `komainu --print-logs --log-level info`.
+- **Ubuntu 24.04 or newer (not WSL): the sandbox can't start** (`/testkomainu` says so, or errors mention `userns` / `setgroups`). Ubuntu restricts user namespaces by default, and the sandbox needs them. The fix the sandbox tool documents:
+  ```bash
+  echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/60-komainu-userns.conf && sudo sysctl --system
+  ```
+  This turns off an Ubuntu hardening setting for all programs (the alternative is an AppArmor profile that allows user namespaces for `bwrap`). Komainu won't change it for you.
 - **Shell commands are refused:** the sandbox isn't working. Run `fork/install.sh` again (it sets the sandbox tool up), and make sure `srt -c "echo ok"` prints `ok`. On Linux, the sandbox also needs `bubblewrap`, `socat` and `ripgrep` from the Linux install block.
 - **Neo4j won't connect:** `/komainu → Neo4j → Test connection` shows the driver's error. Aura URIs start with `neo4j+s://`; a new Aura instance can take a minute to come up. Komainu keeps working (and remembering locally) while it's unreachable.
 - **Image guard says text in images isn't checked:** install `tesseract` (and ImageMagick), and make sure the sandbox works (`srt -c "echo ok"`).

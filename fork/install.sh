@@ -59,7 +59,13 @@ if ! { command -v srt >/dev/null && srt -c true >/dev/null 2>&1; }; then
       echo "! another srt at $FOUND comes first on your PATH and doesn't work. Remove it (if it came from npm: npm rm -g @anthropic-ai/sandbox-runtime) so the one in $BIN is used."
     fi
   else
-    echo "! the sandbox isn't working yet. On Linux, install bubblewrap, socat and ripgrep (see the README), then run fork/install.sh again."
+    if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+      echo "! the sandbox can't start: Ubuntu 24.04+ restricts user namespaces, which it needs. To allow them, run:"
+      echo "    echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/60-komainu-userns.conf && sudo sysctl --system"
+      echo "  (this turns off an Ubuntu hardening setting for all programs), then run fork/install.sh again."
+    else
+      echo "! the sandbox isn't working yet. On Linux, install bubblewrap, socat and ripgrep (see the README), then run fork/install.sh again."
+    fi
   fi
 fi
 

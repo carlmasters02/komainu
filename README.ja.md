@@ -274,6 +274,11 @@ MCP サーバーのサンドボックス化、信頼した後に挙動が変わ�
 
 - **`komainu` が固まる、またはサービスのポートが使用中と表示される：** 通常の OpenCode のバックグラウンドサーバーが同じポートを使っている可能性があります。Komainu 専用のポートを設定してください：`komainu service set port 49375`。
 - **プロジェクトに `.komainu/` フォルダができない：** プラグインが読み込まれていません。`komainu debug config` と `komainu --print-logs --log-level info` を確認してください。
+- **Ubuntu 24.04 以降（WSL を除く）でサンドボックスが起動しない**（`/testkomainu` がそう表示する、またはエラーに `userns` や `setgroups` が含まれる）：Ubuntu は既定でユーザー名前空間を制限しており、サンドボックスにはそれが必要です。サンドボックスのツールが案内している対処法：
+  ```bash
+  echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/60-komainu-userns.conf && sudo sysctl --system
+  ```
+  これはすべてのプログラムに対する Ubuntu の強化設定を無効にします（代替策は `bwrap` にユーザー名前空間を許可する AppArmor プロファイルです）。Komainu が自動で変更することはありません。
 - **シェルコマンドが拒否される：** サンドボックスが動いていません。`fork/install.sh` をもう一度実行し（サンドボックスのツールを設定します）、`srt -c "echo ok"` で `ok` と表示されることを確認してください。Linux では、Linux のインストールブロックに含まれる `bubblewrap`、`socat`、`ripgrep` も必要です。
 - **Neo4j に接続できない：** `/komainu → Neo4j → Test connection` でドライバーのエラーを確認できます。Aura の URI は `neo4j+s://` で始まります。新しい Aura インスタンスは起動まで 1 分ほどかかることがあります。接続できない間も、Komainu は通常どおり動作し、ローカルで脅威を記憶し続けます。
 - **Image guard が「画像内の文字はチェックされていません」と表示する：** `tesseract`（と ImageMagick）をインストールし、サンドボックスが動くこと（`srt -c "echo ok"`）を確認してください。
