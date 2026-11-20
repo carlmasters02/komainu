@@ -23,7 +23,7 @@ Coding agents run shell commands, read your files and fetch web pages, all in th
 
 | Layer | What it does |
 |---|---|
-| **1. Contain** | Every shell command runs in an OS sandbox ([`srt`](https://github.com/anthropic-experimental/sandbox-runtime): bubblewrap on Linux, Seatbelt on macOS). Credential files (`.env`, SSH/cloud keys) are unreadable, writes are limited to the project, Komainu's own settings are read-only, and network goes through a domain allowlist. |
+| **1. Contain** | Every shell command runs in an OS sandbox ([`srt`](https://github.com/anthropics/sandbox-runtime): bubblewrap on Linux, Seatbelt on macOS). Credential files (`.env`, SSH/cloud keys) are unreadable, writes are limited to the project, Komainu's own settings are read-only, and network goes through a domain allowlist. |
 | **2. Prevent** | Checks every shell command (including the files it writes to), file access and URL before it runs, including `fetch()` inside OpenCode's Code Mode. Catastrophic actions (`rm -rf ~`, `curl … \| sh`, sending secrets over the network, cloud metadata) are **blocked**; risky ones (force-push, `npm publish`, `sudo`, editing guardrails or git hooks) **ask you first**. |
 | **3. Taint tracking** | Once untrusted content enters the session (web pages, search results, MCP output), network calls, installs, pushes and third-party tool calls need your approval. Untrusted text is fenced and checked for prompt-injection patterns. |
 | **4. Redact** | API keys, tokens, private keys and URL credentials are scrubbed from tool output before the model (or your provider) ever sees them. |
@@ -229,8 +229,8 @@ Defaults live in `~/.config/komainu/opencode.json` under the Komainu plugin's `o
 Everything except the branding also works inside regular OpenCode v2:
 ```bash
 cp presets/opencode.json presets/AGENTS.md your-project/
-# in opencode.json, set "package" to the absolute path of ~/tools/komainu/packages/opencode-plugin
 ```
+Then, in `opencode.json`, set `"package"` to the absolute path of `~/tools/komainu/packages/opencode-plugin`.
 
 ## FAQ
 
@@ -305,7 +305,7 @@ On first launch Komainu shows one optional message about ai&, a sponsor of the e
 
 ## Credits
 
-Built on [OpenCode](https://github.com/anomalyco/opencode) (MIT) and Anthropic's [sandbox-runtime](https://github.com/anthropic-experimental/sandbox-runtime) (Apache-2.0). Not affiliated with either project.
+Built on [OpenCode](https://github.com/anomalyco/opencode) (MIT) and Anthropic's [sandbox-runtime](https://github.com/anthropics/sandbox-runtime) (Apache-2.0). Not affiliated with either project.
 
 ## License
 
