@@ -31,12 +31,13 @@ describe("srtBinary", () => {
 describe("sandboxToolPaths", () => {
   test("the write tool can't silently replace srt or what its wrapper runs", () => {
     const bin = mkdtempSync(join(tmpdir(), "srt-guard-"))
-    const cli = join(bin, "pkg", "dist", "cli.js")
-    mkdirSync(join(bin, "pkg", "dist"), { recursive: true })
+    const pkg = join(bin, "share", "node_modules", "@anthropic-ai", "sandbox-runtime")
+    const cli = join(pkg, "dist", "cli.js")
+    mkdirSync(join(pkg, "dist"), { recursive: true })
     writeFileSync(cli, "")
     writeFileSync(join(bin, "srt"), `#!/bin/sh\nexec "/usr/bin/bun" --bun "${cli}" "$@"\n`)
     const cfg = { mode: "balanced" as const, workspace: "/tmp/project", protectedPaths: sandboxToolPaths(join(bin, "srt"), join(bin, "komainu")) }
-    for (const target of [join(bin, "srt"), join(bin, "komainu"), join(bin, "komainu-update"), cli])
+    for (const target of [join(bin, "srt"), join(bin, "komainu"), join(bin, "komainu-update"), cli, join(bin, "share", "node_modules", "zod", "index.js")])
       expect(decideFileAccess("write", target, cfg, { tainted: false }).effect).not.toBe("allow")
   })
 })

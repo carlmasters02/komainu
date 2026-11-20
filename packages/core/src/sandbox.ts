@@ -58,10 +58,15 @@ export function sandboxToolPaths(srt: string | undefined, execPath = process.exe
   if (srt) {
     paths.add(srt)
     try { paths.add(realpathSync(srt)) } catch {}
-    // install.sh's wrapper runs the package's cli.js on Bun; protect the whole package it points at.
+    // install.sh's wrapper runs the package's cli.js on Bun; protect the folder it was installed into, dependencies
+    // included (e.g. ~/.local/share/komainu/sandbox-runtime/), or at least the package itself.
     try {
       const m = /exec "[^"]*" --bun "([^"]+)"/.exec(readFileSync(srt, "utf8").slice(0, 4096))
-      if (m?.[1]) paths.add(dirname(dirname(m[1])) + "/")
+      const cli = m?.[1]
+      if (cli) {
+        const i = cli.lastIndexOf("/node_modules/")
+        paths.add((i > 0 ? cli.slice(0, i) : dirname(dirname(cli))) + "/")
+      }
     } catch {}
   }
   return [...paths]
