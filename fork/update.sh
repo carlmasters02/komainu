@@ -77,7 +77,9 @@ case "$(uname -s)" in Linux) OS=linux ;; Darwin) OS=darwin ;; *) OS="" ;; esac
 case "$(uname -m)" in x86_64|amd64) ARCH=x64 ;; aarch64|arm64) ARCH=arm64 ;; *) ARCH="" ;; esac
 
 sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
-size() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1" 2>/dev/null || echo 0; }
+# Checks the file exists first: if curl creates it between the two stat calls, GNU `stat -f %z FILE` would print
+# file-system details instead of a size and break the progress maths.
+size() { [ -e "$1" ] || { echo 0; return; }; stat -c %s "$1" 2>/dev/null || stat -f %z "$1" 2>/dev/null || echo 0; }
 
 # Fetches a file in the background and reports how far along it is.
 fetch() { # url dest
