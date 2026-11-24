@@ -1,0 +1,90 @@
+From 98dc7638d03ae75f0425f5a22f141f273045d98a Mon Sep 17 00:00:00 2001
+From: carlmasters02 <169651373+carlmasters02@users.noreply.github.com>
+Date: Tue, 24 Nov 2026 04:33:19 +0000
+Subject: [PATCH] komainu: only offer newer releases
+
+OpenCode offers any release that differs from the installed one, which lets it roll users back. Komainu fixes problems by publishing a newer release, so offering an older one could only undo fixes (it showed up as "/update to install v2.4.0" on a newer build). The upgrade tests now expect Komainu's wording, and the version comparison has its own tests.
+---
+ packages/cli/src/services/updater-action.ts | 21 +++++++++++++++++++++
+ packages/cli/test/updater-action.test.ts    | 12 ++++++++++++
+ packages/cli/test/upgrade.test.ts           |  4 ++--
+ 3 files changed, 35 insertions(+), 2 deletions(-)
+ create mode 100644 packages/cli/test/updater-action.test.ts
+
+diff --git a/packages/cli/src/services/updater-action.ts b/packages/cli/src/services/updater-action.ts
+index e147f34..579275b 100644
+--- a/packages/cli/src/services/updater-action.ts
++++ b/packages/cli/src/services/updater-action.ts
+@@ -10,9 +10,30 @@ export function action(current: string, latest: string, policy: Policy): Action
+   const currentVersion = parseReleaseVersion(current)
+   const latestVersion = parseReleaseVersion(latest)
+   if (!currentVersion || !latestVersion || sameRelease(currentVersion, latestVersion)) return "none"
++  // Komainu fixes problems by publishing a newer release, so never offer an older one (that could undo security fixes).
++  if (compareRelease(latestVersion, currentVersion) <= 0) return "none"
+   return policy
+ }
+ 
++/** Semver precedence: core numbers, then pre-release identifiers (numeric < alphanumeric, shorter < longer). */
++export function compareRelease(a: NonNullable<ReturnType<typeof parseReleaseVersion>>, b: typeof a): number {
++  const core = (v: typeof a) => v.core.split(".").map(BigInt)
++  const [ac, bc] = [core(a), core(b)]
++  for (let i = 0; i < 3; i++) if (ac[i] !== bc[i]) return ac[i]! < bc[i]! ? -1 : 1
++  if (!a.prerelease.length || !b.prerelease.length) return b.prerelease.length - a.prerelease.length
++  for (let i = 0; i < Math.max(a.prerelease.length, b.prerelease.length); i++) {
++    const [x, y] = [a.prerelease[i], b.prerelease[i]]
++    if (x === undefined) return -1
++    if (y === undefined) return 1
++    const [xn, yn] = [/^[0-9]+$/.test(x), /^[0-9]+$/.test(y)]
++    if (xn && yn) {
++      if (BigInt(x) !== BigInt(y)) return BigInt(x) < BigInt(y) ? -1 : 1
++    } else if (xn !== yn) return xn ? -1 : 1
++    else if (x !== y) return x < y ? -1 : 1
++  }
++  return 0
++}
++
+ export function parseReleaseVersion(input: string) {
+   if (input.length > 256) return
+   const match = input.trim().match(versionPattern)
+diff --git a/packages/cli/test/updater-action.test.ts b/packages/cli/test/updater-action.test.ts
+new file mode 100644
+index 0000000..7fc77c3
+--- /dev/null
++++ b/packages/cli/test/updater-action.test.ts
+@@ -0,0 +1,12 @@
++import { expect, test } from "bun:test"
++import { action } from "../src/services/updater-action"
++test("Komainu only offers releases newer than the installed one", () => {
++  const cases: [string, string, string][] = [
++    ["2.4.1-komainu", "2.4.0-komainu", "none"], ["2.4.0-komainu", "2.4.1-komainu", "notify"],
++    ["2.4.1-komainu", "2.4.1-komainu", "none"], ["2.4.1-komainu", "2.4.1-komainu.1", "notify"],
++    ["2.4.1-komainu.2", "2.4.1-komainu.1", "none"], ["2.4.1-komainu.9", "2.4.1-komainu.10", "notify"],
++    ["2.3.2-komainu.5", "2.4.0-komainu", "notify"], ["2.4.0-komainu", "2.3.2-komainu.5", "none"],
++    ["2.10.0-komainu", "2.9.9-komainu", "none"], ["2.4.1-komainu.1", "2.4.1-komainu", "none"],
++  ]
++  for (const [cur, latest, want] of cases) expect([cur, latest, action(cur, latest, "notify")]).toEqual([cur, latest, want])
++})
+diff --git a/packages/cli/test/upgrade.test.ts b/packages/cli/test/upgrade.test.ts
+index 7ba3b3c..8e45d84 100644
+--- a/packages/cli/test/upgrade.test.ts
++++ b/packages/cli/test/upgrade.test.ts
+@@ -51,14 +51,14 @@ describe("upgrade command", () => {
+     const result = await cli(["v0.0.0-beta-old"])
+     expect(result.exitCode).toBe(0)
+     expect(result.events).toEqual(["method"])
+-    expect(result.stdout).toContain("already installed")
++    expect(result.stdout).toContain("already up to date")
+   })
+ 
+   test("requires an explicit method when detection fails", async () => {
+     const result = await cli([], { UPGRADE_TEST_METHOD: "unknown" })
+     expect(result.exitCode).toBe(1)
+     expect(result.events).toEqual(["method"])
+-    expect(result.stdout).toContain("Pass --method")
++    expect(result.stdout).toContain("Run komainu-update")
+   })
+ 
+   test("rejects unsupported methods before attempting an upgrade", async () => {
+-- 
+2.43.0
+
