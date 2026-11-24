@@ -38,12 +38,15 @@ Komainu-only fixes to the binary (a patch change with no new OpenCode release): 
 
 ## Updating the patches
 ```bash
+fork/verify-upstream-tag.sh vX.Y.Z
 fork/build.sh vX.Y.Z
 cd fork/.work/opencode-vX.Y.Z
 git am --3way ../../patches/*.patch
 git format-patch -q vX.Y.Z -o ../../patches
 echo vX.Y.Z > ../../UPSTREAM
+echo "vX.Y.Z $(../../verify-upstream-tag.sh vX.Y.Z)" > ../../UPSTREAM_COMMIT
 ```
+`verify-upstream-tag.sh` refuses a tag that isn't on OpenCode's default branch or a plain release commit on top of it (only version numbers and the changelog change); never build from a tag it refuses. `UPSTREAM_COMMIT` pins the commit the tag pointed to, and `build.sh` refuses to build that tag if it moves later.
 `build.sh` shows which patch failed. When `git am` stops on a conflict, resolve it, `git add` the files and run `git am --continue`. `format-patch` then rewrites the patch files.
 
 ## Rules that keep sync cheap

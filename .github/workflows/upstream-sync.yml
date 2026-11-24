@@ -41,9 +41,20 @@ jobs:
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "OpenCode latest: $latest, Komainu pinned: $current"
 
+      - name: Check the new release tag is genuine
+        id: genuine
+        if: steps.latest.outputs.latest != steps.latest.outputs.current
+        continue-on-error: true
+        env:
+          TAG: ${{ steps.latest.outputs.latest }}
+        run: |
+          commit=$(fork/verify-upstream-tag.sh "$TAG")
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "OpenCode $TAG is genuine: $commit"
+
       - name: Apply patches to the new release and build
         id: build
-        if: steps.latest.outputs.latest != steps.latest.outputs.current
+        if: steps.latest.outputs.latest != steps.latest.outputs.current && steps.genuine.outcome == 'success'
         continue-on-error: true
         run: fork/build.sh "${{ steps.latest.outputs.latest }}"
 
@@ -66,17 +77,30 @@ jobs:
         if: steps.build.outcome == 'success' && steps.tests.outcome == 'success'
         env:
           TAG: ${{ steps.latest.outputs.latest }}
+          COMMIT: ${{ steps.genuine.outputs.commit }}
         run: |
           git config user.name "carlmasters02"
           git config user.email "169651373+carlmasters02@users.noreply.github.com"
           echo "$TAG" > fork/UPSTREAM
+          echo "$TAG $COMMIT" > fork/UPSTREAM_COMMIT
           git rm -q -f --ignore-unmatch fork/REVISION
-          git add fork/UPSTREAM
+          git add fork/UPSTREAM fork/UPSTREAM_COMMIT
           git commit -m "chore(fork): sync with OpenCode $TAG"
           git push origin HEAD:main
 
+      - name: Open issue (tag failed the authenticity check)
+        if: steps.genuine.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.latest.outputs.latest }}
+        run: |
+          title="Komainu refused OpenCode $TAG: the tag failed the authenticity check"
+          [ "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq length)" = "0" ] || exit 0
+          gh issue create --title "$title" \
+            --body "OpenCode $TAG isn't on OpenCode's default branch and isn't a plain release commit on top of it (see fork/verify-upstream-tag.sh), so Komainu did not build or release it. Check ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} and the tag on GitHub before doing anything else."
+
       - name: Open issue (patches need updating)
-        if: steps.latest.outputs.latest != steps.latest.outputs.current && (steps.build.outcome != 'success' || steps.tests.outcome != 'success')
+        if: steps.latest.outputs.latest != steps.latest.outputs.current && steps.genuine.outcome == 'success' && (steps.build.outcome != 'success' || steps.tests.outcome != 'success')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.latest.outputs.latest }}

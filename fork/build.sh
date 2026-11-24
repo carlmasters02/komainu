@@ -16,6 +16,14 @@ SRC="$FORK/.work/opencode-$TAG"
 VERSION="${TAG#v}-komainu"
 # Same version as the published release, so a source build is not offered the release it already is.
 if [ "$TAG" = "$(cat "$FORK/UPSTREAM")" ] && [ -s "$FORK/REVISION" ]; then VERSION="$VERSION.$(cat "$FORK/REVISION")"; fi
+# The exact OpenCode commit Komainu adopted for this tag (fork/verify-upstream-tag.sh checked it), so a tag moved
+# upstream later can't change what gets built.
+# fork/UPSTREAM_COMMIT holds "<tag> <commit>"; it only applies to that tag.
+PIN=""
+if [ -s "$FORK/UPSTREAM_COMMIT" ]; then
+  read -r PIN_TAG PIN_COMMIT < "$FORK/UPSTREAM_COMMIT" || true
+  if [ "${PIN_TAG:-}" = "$TAG" ]; then PIN="${PIN_COMMIT:-}"; fi
+fi
 
 if [ ! -d "$SRC/.git" ]; then
   echo "→ fetching OpenCode $TAG"
@@ -25,7 +33,13 @@ fi
 cd "$SRC"
 echo "→ resetting to clean $TAG"
 git am --abort >/dev/null 2>&1 || true
-git reset -q --hard "$(git rev-list -n1 "$TAG")"
+TAG_COMMIT="$(git rev-list -n1 "$TAG")"
+if [ -n "$PIN" ] && [ "$TAG_COMMIT" != "$PIN" ]; then
+  echo "✗ OpenCode $TAG now points at $TAG_COMMIT, not the commit Komainu adopted ($PIN)." >&2
+  echo "  Refusing to build it. Please report this: https://github.com/carlmasters02/komainu/issues" >&2
+  exit 1
+fi
+git reset -q --hard "$TAG_COMMIT"
 git clean -qfd            # keeps ignored files (node_modules) for faster rebuilds
 
 echo "→ applying $(ls "$FORK"/patches/*.patch | wc -l) Komainu patches"
