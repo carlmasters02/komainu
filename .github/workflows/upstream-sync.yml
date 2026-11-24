@@ -56,6 +56,11 @@ jobs:
           npm i -g @anthropic-ai/sandbox-runtime
           bun install --frozen-lockfile
           bun run typecheck && bun test && bun run bench/injection/run.ts --ci
+          # OpenCode's own tests for the code Komainu's patches change (updater, automations), so a release that breaks
+          # a patch stops the sync instead of shipping.
+          cd "fork/.work/opencode-${{ steps.latest.outputs.latest }}"
+          (cd packages/cli && bun test test/upgrade.test.ts test/updater-install.test.ts test/updater-action.test.ts)
+          (cd packages/core && bun test test/automation-shell.test.ts)
 
       - name: Adopt the new release on main
         if: steps.build.outcome == 'success' && steps.tests.outcome == 'success'
@@ -65,8 +70,8 @@ jobs:
           git config user.name "carlmasters02"
           git config user.email "169651373+carlmasters02@users.noreply.github.com"
           echo "$TAG" > fork/UPSTREAM
-          rm -f fork/REVISION
-          git add -A fork/UPSTREAM fork/REVISION
+          git rm -q -f --ignore-unmatch fork/REVISION
+          git add fork/UPSTREAM
           git commit -m "chore(fork): sync with OpenCode $TAG"
           git push origin HEAD:main
 
