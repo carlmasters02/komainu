@@ -124,6 +124,7 @@ RETURN s.key, count(e) AS incidents, collect(DISTINCT p.path) AS projects ORDER 
 | `/advisor` | Effort Advisor のモード：Suggest / Auto / Off |
 | `/spend` | 利用額トラッカーの表示・非表示、1日の予算の設定・解除 |
 | `/komainu` | Komainu のハブ：セキュリティグラフ、脅威メモリ、Image guard、Neo4j、上記の設定、スポンサー、各ファイルの場所 |
+| `/testkomainu` | インストール、サンドボックス、保護機能のセルフテスト。Issue に添付できるレポートを作成します |
 
 Komainu のコマンド名は OpenCode の組み込みコマンドと重ならないようにしています（`/effort` は OpenCode の `/variants` の別名で、エフォート自体を設定します。`/usage` と `/stats` も OpenCode のコマンドです）。選んだ設定は `~/.local/state/komainu/settings.json` に保存されます。このファイルはガードレールで保護されており、エージェントは変更できません。
 
@@ -234,6 +235,9 @@ cp presets/opencode.json presets/AGENTS.md your-project/
 その後、`opencode.json` の `"package"` を `~/tools/komainu/packages/opencode-plugin` の絶対パスに設定します。
 
 ## よくある質問
+
+**OpenCode のオートメーションはどうなりますか？**
+OpenCode 2.4 では、プロンプト、シェルコマンド、Code Mode のスクリプトをタイマー、cron、MCP のイベントで、後から誰も見ていないときに実行できます。Komainu は既定で**オフ**にしています（`~/.config/komainu/opencode.json` の `"automations": false`）。オンにした場合も、オートメーションは作成前に必ず確認を求め、自動で承認されることはありません。コマンドはシェルのルールで検査され、信頼できない内容を読んだセッションは作成自体ができず、シェルコマンドは他のコマンドと同じくサンドボックス内で実行されます。
 
 **モデルが賢ければ、そもそもだまされないのでは？**
 プロンプトインジェクションは、最高性能のモデルでもときどきだまされます。攻撃者は一度成功すれば十分です。Komainu はモデルがだまされうることを前提にしているので、守りはモデルの賢さに依存しません。

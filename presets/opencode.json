@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "automations": false,
   "plugins": [
     {
       "package": "/ABSOLUTE/PATH/TO/komainu/packages/opencode-plugin",

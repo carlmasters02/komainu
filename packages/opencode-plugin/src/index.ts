@@ -217,6 +217,33 @@ export function createKomainu(options: KomainuOptions = {}) {
 
       // Third-party tools after taint: an injected prompt's best exfil channel is another integration.
       await ctx.permission.hook("evaluate", async (e) => {
+        // OpenCode automations (2.4+) run later, unattended, under the approval given now. Never approve one
+        // automatically, refuse it outright from a session that has read untrusted content (the classic way to plant
+        // a command that keeps running), and hold the command it would run to the shell policy.
+        const meta = (e as { metadata?: Record<string, unknown> }).metadata
+        if (meta?.unattended === true) {
+          const tainted = taint.isTainted(e.sessionID)
+          const command = typeof meta.command === "string" ? meta.command : undefined
+          let refused: string | undefined
+          if (tainted) refused = "this session has read untrusted external content, so it can't set up an automation that runs on its own later"
+          else if (command) {
+            const d = decideShell(command, policy, { tainted })
+            if (d.effect === "deny") refused = d.reason ?? "the command is blocked by policy"
+          }
+          audit.append({ kind: "decision", sessionID: e.sessionID, tool: "automation", effect: refused ? "deny" : "ask", resources: [command ?? "code"], findings: ["automation"], tainted })
+          if (refused) {
+            e.effect = "deny"
+            e.message = `[komainu] Blocked automation: ${refused}`
+            notify(e.sessionID, `⛩ Blocked an automation: ${refused}`)
+            return
+          }
+          if (e.effect !== "deny") {
+            e.effect = "ask"
+            const what = command ? `the command \`${command.slice(0, 200)}\`` : "a Code Mode script"
+            e.message = `[komainu] This sets up an automation that will run ${what} on its own later, with no one watching. Approve only if you asked for it.`
+          }
+          return
+        }
         // fetch() inside Code Mode's `execute` reaches the network through this webfetch check, not through
         // the webfetch tool, so apply the same URL policy, threat memory and taint here.
         if (e.action === "webfetch") {

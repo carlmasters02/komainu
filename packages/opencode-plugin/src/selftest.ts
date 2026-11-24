@@ -194,6 +194,15 @@ export async function runSelfTest(onProgress: (step: string) => void = () => {})
     else if (r === "prompted") prompted++
     else blocked++
   }
+  const auto = await automationDecision()
+  add("Protections", "automations need your approval", auto === "ask" ? "pass" : "fail",
+    auto === "ask" ? "an automation's command (it runs later, unattended) always asks you first" : `an automation's command was "${auto}", expected "ask"`)
+  try {
+    const on = JSON.parse(readFileSync(cfgPath, "utf8")).automations
+    add("Protections", "automations setting", on === true ? "warn" : "pass", on === true
+      ? `automations are on in ${cfgPath}: each one asks you first and its commands run in the sandbox. Set "automations": false to turn them off`
+      : "automations are off (Komainu's default)")
+  } catch {}
   add("Protections", "prompt-injection attacks", allowed ? "fail" : "pass",
     `${cases.length} attacks: ${blocked} blocked, ${prompted} need your approval, ${allowed} got through${allowed ? ` (${failedCases.join(", ")})` : ""}`)
 
@@ -244,6 +253,28 @@ export async function runSelfTest(onProgress: (step: string) => void = () => {})
   ].join("\n")
   writeFileSync(path, markdown)
   return { checks, path, markdown, counts }
+}
+
+/** What the real plugin decides when an automation (OpenCode 2.4+) asks to run a harmless command later. */
+async function automationDecision(): Promise<string> {
+  const dir = mkdtempSync(join(tmpdir(), "komainu-selftest-auto-"))
+  try {
+    const hooks = new Map<string, (e: any) => unknown>()
+    const reg = (d: string) => ({ hook: async (n: string, cb: any) => (hooks.set(`${d}.${n}`, cb), { dispose: async () => {} }) })
+    const ctx: any = {
+      location: { directory: dir },
+      options: { mode: "balanced", sandbox: "off", effort: "off", memoryPath: join(dir, "m.json"), graphSink: false, stateDir: join(dir, ".komainu") },
+      tool: reg("tool"), shell: reg("shell"), session: reg("session"),
+      permission: { ...reg("permission"), assert: async () => {} },
+      rpc: { register: async () => ({ dispose: async () => {}, events: { emit: async () => {} } }) },
+    }
+    await createKomainu().setup(ctx)
+    const ev: any = { sessionID: "s", action: "shell", resources: ["*"], effect: "allow", metadata: { automation: "selftest", unattended: true, command: "echo hi" } }
+    await hooks.get("permission.evaluate")!(ev)
+    return ev.effect
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 }
 
 /** One benchmark case through the real plugin hooks, assuming the model fully obeys the injection. */

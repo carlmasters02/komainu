@@ -123,6 +123,7 @@ Switch any of this from inside the app; no restart, no config editing:
 | `/advisor` | Effort Advisor mode: Suggest / Auto / Off |
 | `/spend` | Show or hide the spend tracker; set or remove a daily budget |
 | `/komainu` | Komainu hub: security graph, threat memory, Image guard, Neo4j, the settings above, sponsors, where files live |
+| `/testkomainu` | Self-test of your install, sandbox and protections, with a report you can attach to an issue |
 
 Komainu's command names avoid OpenCode's built-ins (`/effort` is OpenCode's shortcut for `/variants`, which sets the effort itself; `/usage` and `/stats` are OpenCode's too). Your choices are saved in `~/.local/state/komainu/settings.json`, which is guardrail-protected so the agent can't change them.
 
@@ -233,6 +234,9 @@ cp presets/opencode.json presets/AGENTS.md your-project/
 Then, in `opencode.json`, set `"package"` to the absolute path of `~/tools/komainu/packages/opencode-plugin`.
 
 ## FAQ
+
+**What about OpenCode's automations?**
+OpenCode 2.4 can run prompts, shell commands and Code Mode scripts on a timer, a cron schedule or an MCP event, later and with no one watching. Komainu turns them **off** by default (`"automations": false` in `~/.config/komainu/opencode.json`). If you turn them on, every automation asks you before it is created and is never approved automatically, its command is checked against the shell rules, a session that has read untrusted content can't create one at all, and its shell commands run in the sandbox like any other.
 
 **Isn't the model just being dumb? Good models won't fall for this.**
 Prompt injection fools even the best models some of the time, and attackers only need it to work once. Komainu assumes the model can be fooled, so the protection doesn't depend on the model.

@@ -91,6 +91,20 @@ else
       } catch {}
     ' && touch "$CFG/.update-checks-on"
   fi
+  # OpenCode 2.4 added automations (commands and scripts that run later, unattended). Komainu keeps them off unless
+  # you turn them on; an existing explicit choice is kept.
+  if [ ! -f "$CFG/.automations-default-off" ]; then
+    CFG="$CFG" bun -e '
+      const file = `${process.env.CFG}/opencode.json`
+      try {
+        const config = await Bun.file(file).json()
+        if (!("automations" in config)) {
+          config.automations = false
+          await Bun.write(file, JSON.stringify(config, null, 2) + "\n")
+        }
+      } catch {}
+    ' && touch "$CFG/.automations-default-off"
+  fi
 fi
 [ -f "$CFG/AGENTS.md" ] || cp "$REPO/presets/AGENTS.md" "$CFG/AGENTS.md"
 
