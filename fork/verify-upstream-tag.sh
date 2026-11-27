@@ -39,11 +39,11 @@ if ! git merge-base --is-ancestor "$COMMIT" "origin/$DEFAULT"; then
       package.json | bun.lock | CHANGELOG.md) ;;
       *) fail "the release commit changes $file" ;;
     esac
-  done < <(git diff --name-only "$COMMIT^" "$COMMIT")
-  changed="$(git diff "$COMMIT^" "$COMMIT" -- . ':!CHANGELOG.md' | grep '^[-+]' | grep -v '^+++ \|^--- ' \
+  done < <(git diff --no-renames --name-only "$COMMIT^" "$COMMIT")
+  changed="$(git diff --no-renames "$COMMIT^" "$COMMIT" -- . ':!CHANGELOG.md' | grep '^[-+]' | grep -v '^+++ \|^--- ' \
     | grep -vE '^[-+][[:space:]]*"version": "[0-9][0-9A-Za-z.+-]*",?$' || true)"
   [ -z "$changed" ] || fail "the release commit changes more than version numbers: $(head -c 300 <<< "$changed")"
-  removed="$(git diff "$COMMIT^" "$COMMIT" -- CHANGELOG.md | grep '^-' | grep -v '^--- ' || true)"
+  removed="$(git diff --no-renames "$COMMIT^" "$COMMIT" -- CHANGELOG.md | grep '^-' | grep -v '^--- ' || true)"
   [ -z "$removed" ] || fail "the release commit removes changelog lines"
 fi
 
